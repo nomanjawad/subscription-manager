@@ -4,6 +4,7 @@
 export type BillingCycle = "monthly" | "yearly";
 export type SubscriptionStatus = "active" | "cancelled";
 export type CheckStatus = "pending" | "renewed" | "failed" | "needs_review";
+export type RequestStatus = "requested" | "approved" | "rejected" | "purchased";
 
 export interface CardRow {
   id: string;
@@ -31,8 +32,31 @@ export interface SubscriptionRow {
   account_email: string | null;
   status: SubscriptionStatus;
   notes: string | null;
+  tag: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SubscriptionRequestRow {
+  id: string;
+  requester_name: string;
+  requester_email: string;
+  platform: string;
+  product: string | null;
+  reason: string | null;
+  amount_estimate: number | null;
+  billing_cycle: BillingCycle;
+  tag: string | null;
+  status: RequestStatus;
+  review_note: string | null;
+  reviewed_at: string | null;
+  purchased_subscription_id: string | null;
+  created_at: string;
+}
+
+export interface RequestCountsRow {
+  status: RequestStatus;
+  count: number;
 }
 
 export interface TransactionRow {
@@ -97,6 +121,7 @@ export interface SubscriptionOverviewRow {
   last_check_status: CheckStatus | null;
   last_check_date: string | null;
   last_check_failure_reason: string | null;
+  tag: string | null;
 }
 
 export interface ReviewQueueRow {

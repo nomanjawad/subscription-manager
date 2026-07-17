@@ -98,12 +98,16 @@ Independent modules are built by parallel subagents where dependencies allow. Tw
 
 ## Phase 4 — Production deployment *(only after company approval)*
 
-1. Create Supabase Cloud project → `supabase db push` (same migrations)
-2. Deploy to Vercel; add `vercel.json` cron hitting `/api/cron/check-renewals` daily (protect with `CRON_SECRET`)
-3. Create a **read-only token** in the company's real Mercury account
-4. Set production env vars: `MERCURY_API_URL=https://api.mercury.com/api/v1`, real token, Supabase Cloud URL/keys
-5. Add simple auth (Supabase Auth, invite-only — 1–2 admins)
-6. Optional later: Slack/email alert on failed renewals; email receipt parsing (README §4.2) if non-Mercury subscriptions ever appear
+> Supabase Cloud and auth already exist (done during development). Remaining:
+
+1. **Replace the dev admin credentials** — the dev login is `admin@example.com` / `password` (deliberately throwaway). Create the real admin user(s) in Supabase Auth, update `ADMIN_EMAILS`, delete the dev user
+2. Regenerate `CRON_SECRET` (random 32+ chars) for production
+3. Deploy to Vercel; add `vercel.json` cron hitting `/api/cron/check-renewals` daily (note: Vercel cron sends GET — the route currently accepts POST only; adjust one or the other)
+4. Create a **read-only token** in the company's real Mercury account
+5. Set production env vars: `MERCURY_API_URL=https://api.mercury.com/api/v1`, real token, Supabase URL/keys, `ADMIN_EMAILS`, `CRON_SECRET`
+6. Backups: Supabase free tier has none — upgrade to Pro or schedule `pg_dump` before real data lands
+7. Clear demo/sandbox data (seeded subscriptions, test requests) before go-live
+8. Optional later: Slack/email alert on failed renewals; email receipt parsing (README §4.2) if non-Mercury subscriptions ever appear
 
 ---
 

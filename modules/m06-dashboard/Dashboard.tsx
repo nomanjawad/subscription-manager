@@ -1,6 +1,16 @@
 // m06-dashboard — async server component. Data comes exclusively from the
 // three RPCs in ./queries.ts; all aggregation happens in Postgres.
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   getDashboardTotals,
   getSpendByPlatform,
@@ -48,9 +58,9 @@ function localTodayISO(): string {
 type Tone = "default" | "amber" | "red";
 
 const VALUE_TONE: Record<Tone, string> = {
-  default: "text-zinc-900 dark:text-zinc-50",
+  default: "text-foreground",
   amber: "text-amber-600 dark:text-amber-400",
-  red: "text-red-600 dark:text-red-400",
+  red: "text-destructive",
 };
 
 function StatTile({
@@ -65,28 +75,27 @@ function StatTile({
   href?: string;
 }) {
   const inner = (
-    <>
-      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-        {label}
-      </p>
+    <CardContent>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className={`mt-1.5 text-2xl font-semibold tracking-tight ${VALUE_TONE[tone]}`}>
         {value}
       </p>
-    </>
+    </CardContent>
   );
-  const card =
-    "block rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900";
   if (href) {
     return (
-      <Link
-        href={href}
-        className={`${card} transition-colors hover:border-zinc-300 dark:hover:border-zinc-700`}
-      >
-        {inner}
+      <Link href={href} className="block">
+        <Card size="sm" className="h-full transition-shadow hover:ring-foreground/25">
+          {inner}
+        </Card>
       </Link>
     );
   }
-  return <div className={card}>{inner}</div>;
+  return (
+    <Card size="sm" className="h-full">
+      {inner}
+    </Card>
+  );
 }
 
 function SectionCard({
@@ -97,18 +106,18 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <h2 className="border-b border-zinc-200 px-5 py-3.5 text-sm font-semibold text-zinc-900 dark:border-zinc-800 dark:text-zinc-50">
-        {title}
-      </h2>
+    <Card size="sm" className="h-full">
+      <CardHeader className="border-b">
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
       {children}
-    </section>
+    </Card>
   );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-5 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+    <p className="px-5 py-8 text-center text-sm text-muted-foreground">
       {children}
     </p>
   );
@@ -173,69 +182,76 @@ export default async function Dashboard() {
                 No renewals due in the next {RENEWAL_WINDOW_DAYS} days.
               </EmptyState>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-zinc-500 dark:text-zinc-400">
-                      <th className="px-5 py-2.5 font-medium">Subscription</th>
-                      <th className="px-5 py-2.5 text-right font-medium">
-                        Amount
-                      </th>
-                      <th className="px-5 py-2.5 font-medium">Renews</th>
-                      <th className="px-5 py-2.5 font-medium">Card</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {renewals.map((r) => {
-                      const overdue = r.next_renewal_date < today;
-                      const isToday = r.next_renewal_date === today;
-                      return (
-                        <tr key={r.subscription_id}>
-                          <td className="px-5 py-3">
-                            <span className="font-medium text-zinc-900 dark:text-zinc-50">
-                              {r.platform}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="px-4 text-xs text-muted-foreground">
+                      Subscription
+                    </TableHead>
+                    <TableHead className="px-4 text-right text-xs text-muted-foreground">
+                      Amount
+                    </TableHead>
+                    <TableHead className="px-4 text-xs text-muted-foreground">
+                      Renews
+                    </TableHead>
+                    <TableHead className="px-4 text-xs text-muted-foreground">
+                      Card
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {renewals.map((r) => {
+                    const overdue = r.next_renewal_date < today;
+                    const isToday = r.next_renewal_date === today;
+                    return (
+                      <TableRow key={r.subscription_id}>
+                        <TableCell className="whitespace-normal px-4 py-3">
+                          <span className="font-medium text-foreground">
+                            {r.platform}
+                          </span>
+                          {r.product && (
+                            <span className="ml-1.5 text-muted-foreground">
+                              {r.product}
                             </span>
-                            {r.product && (
-                              <span className="ml-1.5 text-zinc-500 dark:text-zinc-400">
-                                {r.product}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-5 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
-                            {money(r.amount, r.currency)}
-                          </td>
-                          <td className="px-5 py-3 whitespace-nowrap">
-                            <span
-                              className={
-                                overdue
-                                  ? "font-medium text-red-600 dark:text-red-400"
-                                  : isToday
-                                    ? "font-medium text-amber-600 dark:text-amber-400"
-                                    : "text-zinc-700 dark:text-zinc-300"
-                              }
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right tabular-nums">
+                          {money(r.amount, r.currency)}
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <span
+                            className={
+                              overdue
+                                ? "font-medium text-destructive"
+                                : isToday
+                                  ? "font-medium text-amber-600 dark:text-amber-400"
+                                  : undefined
+                            }
+                          >
+                            {formatDate(r.next_renewal_date)}
+                          </span>
+                          {overdue && (
+                            <Badge variant="destructive" className="ml-2">
+                              Overdue
+                            </Badge>
+                          )}
+                          {isToday && (
+                            <Badge
+                              variant="secondary"
+                              className="ml-2 bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
                             >
-                              {formatDate(r.next_renewal_date)}
-                            </span>
-                            {overdue && (
-                              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/60 dark:text-red-300">
-                                Overdue
-                              </span>
-                            )}
-                            {isToday && (
-                              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-                                Today
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-5 py-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                            {r.card_last4 ? `•••• ${r.card_last4}` : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                              Today
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-muted-foreground">
+                          {r.card_last4 ? `•••• ${r.card_last4}` : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             )}
           </SectionCard>
         </div>
@@ -246,36 +262,38 @@ export default async function Dashboard() {
             {spend.length === 0 ? (
               <EmptyState>No active subscriptions yet.</EmptyState>
             ) : (
-              <ul className="space-y-4 px-5 py-4">
-                {spend.map((row) => {
-                  const pct =
-                    maxSpend > 0
-                      ? Math.max((row.monthly_amount / maxSpend) * 100, 2)
-                      : 0;
-                  return (
-                    <li key={row.platform}>
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="truncate font-medium text-zinc-900 dark:text-zinc-50">
-                          {row.platform}
-                          <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
-                            · {row.subscription_count}{" "}
-                            {row.subscription_count === 1 ? "sub" : "subs"}
+              <CardContent>
+                <ul className="space-y-4">
+                  {spend.map((row) => {
+                    const pct =
+                      maxSpend > 0
+                        ? Math.max((row.monthly_amount / maxSpend) * 100, 2)
+                        : 0;
+                    return (
+                      <li key={row.platform}>
+                        <div className="flex items-baseline justify-between gap-3 text-sm">
+                          <span className="truncate font-medium text-foreground">
+                            {row.platform}
+                            <span className="ml-1.5 font-normal text-muted-foreground">
+                              · {row.subscription_count}{" "}
+                              {row.subscription_count === 1 ? "sub" : "subs"}
+                            </span>
                           </span>
-                        </span>
-                        <span className="shrink-0 tabular-nums text-zinc-700 dark:text-zinc-300">
-                          {money(row.monthly_amount)}/mo
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-2 overflow-hidden rounded-r bg-zinc-100 dark:bg-zinc-800">
-                        <div
-                          className="h-full rounded-r bg-zinc-700 dark:bg-zinc-300"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                          <span className="shrink-0 tabular-nums text-muted-foreground">
+                            {money(row.monthly_amount)}/mo
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-primary/20">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
             )}
           </SectionCard>
         </div>

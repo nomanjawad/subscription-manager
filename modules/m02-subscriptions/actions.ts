@@ -30,6 +30,18 @@ interface SubscriptionInput {
   card_id: string | null;
   account_email: string | null;
   notes: string | null;
+  tag: string | null;
+}
+
+/** Optional tag: trimmed, lowercased, max 40 chars. */
+function parseTag(formData: FormData): string | null {
+  const raw = text(formData, "tag");
+  if (raw === null) return null;
+  const tag = raw.toLowerCase();
+  if (tag.length > 40) {
+    throw new Error("Tag must be at most 40 characters.");
+  }
+  return tag;
 }
 
 function parseSubscriptionForm(formData: FormData): SubscriptionInput {
@@ -79,6 +91,7 @@ function parseSubscriptionForm(formData: FormData): SubscriptionInput {
     card_id: cardId,
     account_email: text(formData, "account_email"),
     notes: text(formData, "notes"),
+    tag: parseTag(formData),
   };
 }
 
@@ -98,6 +111,8 @@ export async function createSubscription(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/subscriptions");
+  // Back to the table after a successful create.
+  redirect("/subscriptions");
 }
 
 export async function updateSubscription(
