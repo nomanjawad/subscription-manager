@@ -6,9 +6,11 @@ import type {
   SubscriptionRequestRow,
 } from "@/lib/types";
 
-/** Requests in the given status(es), newest first. DB-side filter. */
+/** Requests in the given status(es), newest first. DB-side filter. When a
+ * teamId is given the result is scoped to that team (used for team leads). */
 export async function getRequests(
   status: RequestStatus | RequestStatus[],
+  teamId?: string,
 ): Promise<SubscriptionRequestRow[]> {
   const supabase = createServiceClient();
 
@@ -16,6 +18,9 @@ export async function getRequests(
   query = Array.isArray(status)
     ? query.in("status", status)
     : query.eq("status", status);
+  if (teamId) {
+    query = query.eq("team_id", teamId);
+  }
 
   const { data, error } = await query.order("created_at", {
     ascending: false,
@@ -26,12 +31,16 @@ export async function getRequests(
   return (data ?? []) as SubscriptionRequestRow[];
 }
 
-/** Per-status counts for the admin tab badges (request_counts RPC). */
-export async function getRequestCounts(): Promise<
-  Record<RequestStatus, number>
-> {
+/** Per-status counts for the admin tab badges (request_counts RPC). Scoped to
+ * a team when teamId is provided. */
+export async function getRequestCounts(
+  teamId?: string,
+): Promise<Record<RequestStatus, number>> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase.rpc("request_counts");
+  const { data, error } = await supabase.rpc(
+    "request_counts",
+    teamId ? { p_team_id: teamId } : {},
+  );
   if (error) {
     throw new Error(`Failed to load request counts: ${error.message}`);
   }

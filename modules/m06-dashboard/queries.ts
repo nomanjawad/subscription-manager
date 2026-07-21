@@ -13,10 +13,15 @@ import type {
  * Returns null when the database is unreachable / not migrated yet — the RPC
  * itself always yields exactly one row.
  */
-export async function getDashboardTotals(): Promise<DashboardTotalsRow | null> {
+export async function getDashboardTotals(
+  teamId?: string,
+): Promise<DashboardTotalsRow | null> {
   try {
     const supabase = createServiceClient();
-    const { data, error } = await supabase.rpc("dashboard_totals");
+    const { data, error } = await supabase.rpc(
+      "dashboard_totals",
+      teamId ? { p_team_id: teamId } : {},
+    );
     if (error) {
       console.error("[m06-dashboard] dashboard_totals failed:", error.message);
       return null;
@@ -33,12 +38,16 @@ export async function getDashboardTotals(): Promise<DashboardTotalsRow | null> {
 /** Active subscriptions renewing within the next `days` days (includes overdue). */
 export async function getUpcomingRenewals(
   days = 30,
+  teamId?: string,
 ): Promise<UpcomingRenewalRow[]> {
   try {
     const supabase = createServiceClient();
-    const { data, error } = await supabase.rpc("upcoming_renewals", {
-      days_ahead: days,
-    });
+    const { data, error } = await supabase.rpc(
+      "upcoming_renewals",
+      teamId
+        ? { days_ahead: days, p_team_id: teamId }
+        : { days_ahead: days },
+    );
     if (error) {
       console.error("[m06-dashboard] upcoming_renewals failed:", error.message);
       return [];
@@ -51,10 +60,15 @@ export async function getUpcomingRenewals(
 }
 
 /** Per-platform spend, normalized to a monthly amount, highest first. */
-export async function getSpendByPlatform(): Promise<SpendByPlatformRow[]> {
+export async function getSpendByPlatform(
+  teamId?: string,
+): Promise<SpendByPlatformRow[]> {
   try {
     const supabase = createServiceClient();
-    const { data, error } = await supabase.rpc("spend_by_platform");
+    const { data, error } = await supabase.rpc(
+      "spend_by_platform",
+      teamId ? { p_team_id: teamId } : {},
+    );
     if (error) {
       console.error("[m06-dashboard] spend_by_platform failed:", error.message);
       return [];

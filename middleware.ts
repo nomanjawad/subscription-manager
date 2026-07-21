@@ -3,14 +3,22 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Public surface: login, the open request form, cron (Bearer-secret) and dev
 // seed (disabled in prod builds). Everything else — including /api/sync/* and
-// /api/mercury/* — requires an allowlisted admin session.
+// /api/mercury/* — requires an admin or team-lead session.
 const PUBLIC_PAGES = ["/login", "/request"];
 const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
+// Admin-only pages: team leads are redirected to their dashboard.
+const ADMIN_ONLY_PREFIXES = ["/teams", "/analytics"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/")))
     return true;
   return PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
+}
+
+function isAdminOnly(pathname: string): boolean {
+  return ADMIN_ONLY_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
 }
 
 export async function middleware(request: NextRequest) {
@@ -46,8 +54,17 @@ export async function middleware(request: NextRequest) {
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  const isAdmin =
-    !!user?.email && allowlist.includes(user.email.toLowerCase());
+
+  // Resolve role from the JWT (app_metadata), with the ADMIN_EMAILS bootstrap.
+  // Mirrors lib/supabase/auth.ts:resolveRole — kept DB-free for the edge.
+  const email = user?.email?.toLowerCase() ?? null;
+  const metaRole = user?.app_metadata?.role;
+  let role: "admin" | "team_lead" | null = null;
+  if (metaRole === "admin" || metaRole === "team_lead") role = metaRole;
+  else if (email && allowlist.includes(email)) role = "admin";
+
+  const isAuthed = role !== null;
+  const isAdmin = role === "admin";
 
   const { pathname } = request.nextUrl;
 
@@ -60,7 +77,8 @@ export async function middleware(request: NextRequest) {
     return redirect;
   }
 
-  if (!isPublic(pathname) && !isAdmin) {
+  // Gate 1: any non-public route requires an authenticated (admin/team_lead) session.
+  if (!isPublic(pathname) && !isAuthed) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
@@ -70,8 +88,16 @@ export async function middleware(request: NextRequest) {
     return redirectWithCookies(url);
   }
 
-  // Already signed in → keep admins out of the login page.
-  if (pathname === "/login" && isAdmin) {
+  // Gate 2: admin-only pages — team leads get bounced to their dashboard.
+  if (isAuthed && !isAdmin && isAdminOnly(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    url.search = "";
+    return redirectWithCookies(url);
+  }
+
+  // Already signed in → keep users off the login page.
+  if (pathname === "/login" && isAuthed) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

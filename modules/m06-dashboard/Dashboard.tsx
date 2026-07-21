@@ -127,11 +127,11 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 
 const RENEWAL_WINDOW_DAYS = 30;
 
-export default async function Dashboard() {
+export default async function Dashboard({ teamId }: { teamId?: string }) {
   const [totals, renewals, spend] = await Promise.all([
-    getDashboardTotals(),
-    getUpcomingRenewals(RENEWAL_WINDOW_DAYS),
-    getSpendByPlatform(),
+    getDashboardTotals(teamId),
+    getUpcomingRenewals(RENEWAL_WINDOW_DAYS, teamId),
+    getSpendByPlatform(teamId),
   ]);
 
   const today = localTodayISO();

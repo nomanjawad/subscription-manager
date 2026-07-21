@@ -11,6 +11,8 @@ export interface SubscriptionFilters {
   status?: "active" | "cancelled";
   cycle?: "monthly" | "yearly";
   q?: string;
+  /** Team scope. Server-enforced (not a user-facing filter). */
+  teamId?: string;
 }
 
 /**
@@ -23,6 +25,7 @@ export async function getSubscriptions(
   const supabase = createServiceClient();
   let query = supabase.from("subscription_overview").select("*");
 
+  if (filters.teamId) query = query.eq("team_id", filters.teamId);
   if (filters.tag) query = query.eq("tag", filters.tag);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.cycle) query = query.eq("billing_cycle", filters.cycle);
@@ -47,9 +50,12 @@ export async function getSubscriptions(
 }
 
 /** Distinct tags (for the filter dropdown + form datalist). */
-export async function getTags(): Promise<string[]> {
+export async function getTags(teamId?: string): Promise<string[]> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase.rpc("subscription_tags");
+  const { data, error } = await supabase.rpc(
+    "subscription_tags",
+    teamId ? { p_team_id: teamId } : {},
+  );
 
   if (error) {
     throw new Error(`Failed to load tags: ${error.message}`);

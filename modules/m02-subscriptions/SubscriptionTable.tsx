@@ -64,6 +64,7 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Platform</TableHead>
+            <TableHead>Team</TableHead>
             <TableHead>Tag</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Next renewal</TableHead>
@@ -77,7 +78,7 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={8}
+                colSpan={9}
                 className="h-24 text-center text-muted-foreground"
               >
                 No subscriptions match — adjust the filters or add one.
@@ -94,6 +95,7 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
                     </div>
                   )}
                 </TableCell>
+                <TableCell>{row.team_name ?? "Unassigned"}</TableCell>
                 <TableCell>
                   {row.tag ? (
                     <Badge variant="outline">{row.tag}</Badge>

@@ -9,6 +9,7 @@
 // request into a real subscriptions row.
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getSessionUser, type SessionUser } from "@/lib/supabase/auth";
 import type { BillingCycle, RequestStatus } from "@/lib/types";
 
 export interface SubmitState {
@@ -108,6 +109,43 @@ export async function submitRequest(
   }
 
   const supabase = createServiceClient();
+
+  // Team routing. A chosen team must exist; if the system has any teams at
+  // all, choosing one is required (a fresh install with no teams still works).
+  let teamId: string | null = null;
+  let autoApprove = false;
+
+  const teamRaw = text(formData, "team_id");
+  if (teamRaw !== null) {
+    if (!UUID_RE.test(teamRaw)) {
+      return fail("Please choose a valid team.");
+    }
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id, auto_approve")
+      .eq("id", teamRaw)
+      .maybeSingle();
+    if (teamError) {
+      // Never leak DB internals to the public form.
+      return fail("Could not submit your request right now. Please try again.");
+    }
+    if (!team) {
+      return fail("Please choose a valid team.");
+    }
+    teamId = team.id;
+    autoApprove = team.auto_approve === true;
+  } else {
+    const { count, error: countError } = await supabase
+      .from("teams")
+      .select("id", { count: "exact", head: true });
+    if (countError) {
+      return fail("Could not submit your request right now. Please try again.");
+    }
+    if ((count ?? 0) > 0) {
+      return fail("Please choose a team.");
+    }
+  }
+
   const { error } = await supabase.from("subscription_requests").insert({
     requester_name: requesterName,
     requester_email: requesterEmail,
@@ -116,7 +154,14 @@ export async function submitRequest(
     reason,
     amount_estimate: amountEstimate,
     billing_cycle: billingCycle,
-    status: "requested" satisfies RequestStatus,
+    team_id: teamId,
+    ...(autoApprove
+      ? {
+          status: "approved" satisfies RequestStatus,
+          reviewed_at: new Date().toISOString(),
+          review_note: "Auto-approved (team policy)",
+        }
+      : { status: "requested" satisfies RequestStatus }),
   });
   if (error) {
     // Never leak DB internals to the public form.
@@ -125,6 +170,22 @@ export async function submitRequest(
 
   revalidatePath("/requests");
   return { ok: true, error: null };
+}
+
+// ── Authorization ────────────────────────────────────────────────────────
+
+/**
+ * Guards a review/purchase action against the acting user's team scope.
+ * Admins may act on any request; a team lead may only act on requests routed
+ * to their own team.
+ */
+function authorizeForRequestTeam(
+  session: SessionUser,
+  requestTeamId: string | null,
+): void {
+  if (session.role === "admin") return;
+  if (session.teamId && session.teamId === requestTeamId) return;
+  throw new Error("You can only act on your own team's requests.");
 }
 
 // ── Admin: review (approve / reject) ─────────────────────────────────────
@@ -136,7 +197,24 @@ async function reviewRequest(
 ): Promise<void> {
   assertUuid(id, "request");
 
+  const session = await getSessionUser();
+  if (!session) throw new Error("You must be signed in to review requests.");
+
   const supabase = createServiceClient();
+
+  const { data: existing, error: loadError } = await supabase
+    .from("subscription_requests")
+    .select("team_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (loadError) {
+    throw new Error(`Failed to load request: ${loadError.message}`);
+  }
+  if (!existing) {
+    throw new Error("Request not found.");
+  }
+  authorizeForRequestTeam(session, existing.team_id);
+
   const { data, error } = await supabase
     .from("subscription_requests")
     .update({
@@ -180,11 +258,14 @@ export async function purchaseRequest(
 ): Promise<void> {
   assertUuid(id, "request");
 
+  const session = await getSessionUser();
+  if (!session) throw new Error("You must be signed in to purchase requests.");
+
   const supabase = createServiceClient();
 
   const { data: request, error: fetchError } = await supabase
     .from("subscription_requests")
-    .select("id, status, platform, product, reviewed_at")
+    .select("id, status, platform, product, reviewed_at, team_id")
     .eq("id", id)
     .maybeSingle();
   if (fetchError) {
@@ -193,6 +274,7 @@ export async function purchaseRequest(
   if (!request) {
     throw new Error("Request not found.");
   }
+  authorizeForRequestTeam(session, request.team_id);
   if (request.status !== "approved") {
     throw new Error("Only approved requests can be marked purchased.");
   }
@@ -260,6 +342,7 @@ export async function purchaseRequest(
       account_email: accountEmail,
       tag,
       notes,
+      team_id: request.team_id,
     })
     .select("id")
     .single();

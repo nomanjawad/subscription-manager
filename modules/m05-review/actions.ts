@@ -2,6 +2,7 @@
 
 // m05-review — server actions for the review queue.
 import { revalidatePath } from "next/cache";
+import { getSessionUser, requireAdmin } from "@/lib/supabase/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { RenewalCheckRow, SubscriptionRow } from "@/lib/types";
 import { advanceOneCycle } from "./dates";
@@ -17,8 +18,46 @@ function assertNoError(error: { message: string } | null, context: string): void
   if (error) throw new Error(`${context}: ${error.message}`);
 }
 
+/**
+ * Authorize a per-check action: admins always pass; a team lead may only act
+ * on a check whose subscription belongs to their own team. Throws otherwise.
+ */
+async function authorizeCheckAction(
+  supabase: ReturnType<typeof createServiceClient>,
+  checkId: string,
+): Promise<void> {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error("You must be signed in to review renewals.");
+  }
+  if (session.role === "admin") return;
+
+  // team_lead: the check's subscription must belong to their team.
+  const { data, error } = await supabase
+    .from("renewal_checks")
+    .select("subscriptions(team_id)")
+    .eq("id", checkId)
+    .single();
+  assertNoError(error, "authorizing check");
+
+  // PostgREST types a to-one embed as an array in the generated shape; at
+  // runtime it's a single object. Normalize both.
+  type EmbeddedSub = { team_id: string | null };
+  const joined = (
+    data as unknown as { subscriptions: EmbeddedSub | EmbeddedSub[] | null }
+  ).subscriptions;
+  const sub = Array.isArray(joined) ? (joined[0] ?? null) : joined;
+  const checkTeamId = sub?.team_id ?? null;
+
+  if (session.teamId === null || checkTeamId !== session.teamId) {
+    throw new Error("You may only act on your own team's review items.");
+  }
+}
+
 /** Run the full sync → generate → match pipeline, then refresh the UI. */
 export async function runChecksAction(): Promise<RunRenewalChecksResult> {
+  // Global job — admin only. Team leads must not trigger it.
+  await requireAdmin();
   const result = await runRenewalChecks();
   revalidateAll();
   return result;
@@ -34,6 +73,7 @@ export async function confirmMatch(
   learnAlias: string | null,
 ): Promise<void> {
   const supabase = createServiceClient();
+  await authorizeCheckAction(supabase, checkId);
 
   const { data: checkData, error: checkError } = await supabase
     .from("renewal_checks")
@@ -92,6 +132,7 @@ export async function confirmMatch(
 /** Manually mark a review item as a failed renewal. */
 export async function markFailed(checkId: string, note: string | null): Promise<void> {
   const supabase = createServiceClient();
+  await authorizeCheckAction(supabase, checkId);
   const { error } = await supabase
     .from("renewal_checks")
     .update({

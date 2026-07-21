@@ -23,21 +23,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import type { TeamOption } from "@/lib/types";
+import { TeamPicker } from "@/modules/m08-teams/TeamPicker";
 import { submitRequest, type SubmitState } from "./actions";
 
 const initialState: SubmitState = { ok: false, error: null };
 
-export function RequestForm() {
+export function RequestForm({ teams }: { teams: TeamOption[] }) {
   const [formKey, setFormKey] = useState(0);
   return (
     <RequestFormInner
       key={formKey}
+      teams={teams}
       onReset={() => setFormKey((k) => k + 1)}
     />
   );
 }
 
-function RequestFormInner({ onReset }: { onReset: () => void }) {
+function RequestFormInner({
+  teams,
+  onReset,
+}: {
+  teams: TeamOption[];
+  onReset: () => void;
+}) {
   const [state, formAction, pending] = useActionState(
     submitRequest,
     initialState,
@@ -94,6 +103,23 @@ function RequestFormInner({ onReset }: { onReset: () => void }) {
               placeholder="jane@company.com"
             />
           </div>
+
+          {teams.length > 0 ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Team / category *</Label>
+              <TeamPicker
+                teams={teams}
+                name="team_id"
+                required
+                placeholder="Choose a team"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+              No teams have been set up yet — your request will be submitted
+              unassigned.
+            </p>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="platform">Platform *</Label>

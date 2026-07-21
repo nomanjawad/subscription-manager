@@ -4,6 +4,7 @@
 // (no schema deps); all writes revalidate /subscriptions.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/supabase/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { BillingCycle } from "@/lib/types";
 
@@ -31,6 +32,7 @@ interface SubscriptionInput {
   account_email: string | null;
   notes: string | null;
   tag: string | null;
+  team_id: string | null;
 }
 
 /** Optional tag: trimmed, lowercased, max 40 chars. */
@@ -80,6 +82,11 @@ function parseSubscriptionForm(formData: FormData): SubscriptionInput {
     throw new Error("Card must be a valid card id.");
   }
 
+  const teamId = text(formData, "team_id");
+  if (teamId !== null && !UUID_RE.test(teamId)) {
+    throw new Error("Team must be a valid team id.");
+  }
+
   return {
     platform,
     product: text(formData, "product"),
@@ -92,6 +99,7 @@ function parseSubscriptionForm(formData: FormData): SubscriptionInput {
     account_email: text(formData, "account_email"),
     notes: text(formData, "notes"),
     tag: parseTag(formData),
+    team_id: teamId,
   };
 }
 
@@ -101,10 +109,83 @@ function assertUuid(id: string, what: string): void {
   }
 }
 
+/**
+ * Authorize + validate the requested team_id against the current session.
+ * A team lead may only target their own team; an admin may target any team
+ * or leave it unassigned. A non-null team must reference an existing team.
+ */
+async function authorizeTeamId(
+  supabase: ReturnType<typeof createServiceClient>,
+  teamId: string | null,
+): Promise<void> {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error("You must be signed in to manage subscriptions.");
+  }
+
+  if (session.role === "team_lead") {
+    if (session.teamId === null) {
+      throw new Error("You haven't been assigned to a team yet.");
+    }
+    if (teamId !== session.teamId) {
+      throw new Error("You may only assign subscriptions to your own team.");
+    }
+  }
+
+  if (teamId !== null) {
+    const { data, error } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .maybeSingle();
+    if (error) {
+      throw new Error(`Failed to validate team: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error("Team does not exist.");
+    }
+  }
+}
+
+/**
+ * Authorize a mutation against an EXISTING subscription. Admins may act on any
+ * subscription; a team lead may only act on one already belonging to their own
+ * team. Guards cancel/reactivate/update so a team lead can't act on — or, on
+ * update, hijack into their own team — another team's subscription via a
+ * crafted id. Server actions are public endpoints, so this check can't live in
+ * the UI.
+ */
+async function authorizeExistingSubscription(
+  supabase: ReturnType<typeof createServiceClient>,
+  id: string,
+): Promise<void> {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error("You must be signed in to manage subscriptions.");
+  }
+  if (session.role === "admin") return;
+  if (session.teamId === null) {
+    throw new Error("You haven't been assigned to a team yet.");
+  }
+
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("team_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load subscription: ${error.message}`);
+  }
+  if (!data || data.team_id !== session.teamId) {
+    throw new Error("You may only manage your own team's subscriptions.");
+  }
+}
+
 export async function createSubscription(formData: FormData): Promise<void> {
   const input = parseSubscriptionForm(formData);
 
   const supabase = createServiceClient();
+  await authorizeTeamId(supabase, input.team_id);
   const { error } = await supabase.from("subscriptions").insert(input);
   if (error) {
     throw new Error(`Failed to create subscription: ${error.message}`);
@@ -123,6 +204,10 @@ export async function updateSubscription(
   const input = parseSubscriptionForm(formData);
 
   const supabase = createServiceClient();
+  // Must already own the subscription (blocks hijacking another team's row),
+  // and the destination team must also be theirs.
+  await authorizeExistingSubscription(supabase, id);
+  await authorizeTeamId(supabase, input.team_id);
   const { error } = await supabase
     .from("subscriptions")
     .update(input)
@@ -143,6 +228,7 @@ async function setStatus(
   assertUuid(id, "subscription");
 
   const supabase = createServiceClient();
+  await authorizeExistingSubscription(supabase, id);
   const { error } = await supabase
     .from("subscriptions")
     .update({ status })

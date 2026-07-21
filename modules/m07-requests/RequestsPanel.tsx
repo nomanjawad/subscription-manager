@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { RequestStatus, SubscriptionRequestRow } from "@/lib/types";
+import { getTeamsPublic } from "@/modules/m08-teams/queries";
 import { PurchaseDialog } from "./PurchaseDialog";
 import { RequestActions } from "./RequestActions";
 import { getRequestCounts, getRequests } from "./queries";
@@ -86,6 +87,18 @@ function Reason({ reason }: { reason: string | null }) {
   );
 }
 
+function TeamName({
+  row,
+  teamNames,
+}: {
+  row: SubscriptionRequestRow;
+  teamNames: Map<string, string>;
+}) {
+  const name = row.team_id ? teamNames.get(row.team_id) : null;
+  if (!name) return <span className="text-muted-foreground">Unassigned</span>;
+  return <span>{name}</span>;
+}
+
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -96,7 +109,13 @@ function EmptyState({ message }: { message: string }) {
 
 // ── Per-tab tables ───────────────────────────────────────────────────────
 
-function RequestedTable({ rows }: { rows: SubscriptionRequestRow[] }) {
+function RequestedTable({
+  rows,
+  teamNames,
+}: {
+  rows: SubscriptionRequestRow[];
+  teamNames: Map<string, string>;
+}) {
   if (rows.length === 0) {
     return <EmptyState message="No open requests — all caught up." />;
   }
@@ -106,6 +125,7 @@ function RequestedTable({ rows }: { rows: SubscriptionRequestRow[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Requester</TableHead>
+            <TableHead>Team</TableHead>
             <TableHead>Platform</TableHead>
             <TableHead>Est. amount</TableHead>
             <TableHead>Cycle</TableHead>
@@ -119,6 +139,9 @@ function RequestedTable({ rows }: { rows: SubscriptionRequestRow[] }) {
             <TableRow key={row.id}>
               <TableCell>
                 <Requester row={row} />
+              </TableCell>
+              <TableCell>
+                <TeamName row={row} teamNames={teamNames} />
               </TableCell>
               <TableCell>
                 <PlatformProduct row={row} />
@@ -144,7 +167,13 @@ function RequestedTable({ rows }: { rows: SubscriptionRequestRow[] }) {
   );
 }
 
-async function PendingTable({ rows }: { rows: SubscriptionRequestRow[] }) {
+async function PendingTable({
+  rows,
+  teamNames,
+}: {
+  rows: SubscriptionRequestRow[];
+  teamNames: Map<string, string>;
+}) {
   if (rows.length === 0) {
     return <EmptyState message="Nothing pending purchase." />;
   }
@@ -155,6 +184,7 @@ async function PendingTable({ rows }: { rows: SubscriptionRequestRow[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Requester</TableHead>
+            <TableHead>Team</TableHead>
             <TableHead>Platform</TableHead>
             <TableHead>Est. amount</TableHead>
             <TableHead>Cycle</TableHead>
@@ -168,6 +198,9 @@ async function PendingTable({ rows }: { rows: SubscriptionRequestRow[] }) {
             <TableRow key={row.id}>
               <TableCell>
                 <Requester row={row} />
+              </TableCell>
+              <TableCell>
+                <TeamName row={row} teamNames={teamNames} />
               </TableCell>
               <TableCell>
                 <PlatformProduct row={row} />
@@ -193,7 +226,13 @@ async function PendingTable({ rows }: { rows: SubscriptionRequestRow[] }) {
   );
 }
 
-function HistoryTable({ rows }: { rows: SubscriptionRequestRow[] }) {
+function HistoryTable({
+  rows,
+  teamNames,
+}: {
+  rows: SubscriptionRequestRow[];
+  teamNames: Map<string, string>;
+}) {
   if (rows.length === 0) {
     return <EmptyState message="No purchased or rejected requests yet." />;
   }
@@ -203,6 +242,7 @@ function HistoryTable({ rows }: { rows: SubscriptionRequestRow[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Requester</TableHead>
+            <TableHead>Team</TableHead>
             <TableHead>Platform</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Review note</TableHead>
@@ -215,6 +255,9 @@ function HistoryTable({ rows }: { rows: SubscriptionRequestRow[] }) {
             <TableRow key={row.id}>
               <TableCell>
                 <Requester row={row} />
+              </TableCell>
+              <TableCell>
+                <TeamName row={row} teamNames={teamNames} />
               </TableCell>
               <TableCell>
                 <PlatformProduct row={row} />
@@ -247,13 +290,21 @@ const TAB_STATUS: Record<RequestsTab, RequestStatus | RequestStatus[]> = {
   history: ["purchased", "rejected"],
 };
 
-export async function RequestsPanel({ tab }: { tab: string | undefined }) {
+export async function RequestsPanel({
+  tab,
+  teamId,
+}: {
+  tab: string | undefined;
+  teamId?: string;
+}) {
   const active = normalizeTab(tab);
 
-  const [counts, rows] = await Promise.all([
-    getRequestCounts(),
-    getRequests(TAB_STATUS[active]),
+  const [counts, rows, teams] = await Promise.all([
+    getRequestCounts(teamId),
+    getRequests(TAB_STATUS[active], teamId),
+    getTeamsPublic(),
   ]);
+  const teamNames = new Map(teams.map((t) => [t.id, t.name]));
 
   return (
     <div className="space-y-4">
@@ -275,9 +326,15 @@ export async function RequestsPanel({ tab }: { tab: string | undefined }) {
         </TabsList>
       </Tabs>
 
-      {active === "requested" && <RequestedTable rows={rows} />}
-      {active === "pending" && <PendingTable rows={rows} />}
-      {active === "history" && <HistoryTable rows={rows} />}
+      {active === "requested" && (
+        <RequestedTable rows={rows} teamNames={teamNames} />
+      )}
+      {active === "pending" && (
+        <PendingTable rows={rows} teamNames={teamNames} />
+      )}
+      {active === "history" && (
+        <HistoryTable rows={rows} teamNames={teamNames} />
+      )}
     </div>
   );
 }

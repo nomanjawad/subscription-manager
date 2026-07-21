@@ -15,8 +15,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { CardRow, SubscriptionOverviewRow } from "@/lib/types";
+import type {
+  CardRow,
+  SubscriptionOverviewRow,
+  TeamOption,
+} from "@/lib/types";
 import { CardPicker } from "@/modules/m01-cards/CardPicker";
+import { TeamPicker } from "@/modules/m08-teams/TeamPicker";
 import { createSubscription, updateSubscription } from "./actions";
 
 interface SubscriptionFormProps {
@@ -24,12 +29,21 @@ interface SubscriptionFormProps {
   /** Existing tags, offered as datalist suggestions for the tag field. */
   tags?: string[];
   subscription?: SubscriptionOverviewRow;
+  /** Selectable teams (admin only). */
+  teams?: TeamOption[];
+  /** When set (team lead), the team is fixed to this id and read-only. */
+  lockedTeamId?: string | null;
+  /** Optional display name for the locked team. */
+  lockedTeamName?: string | null;
 }
 
 export function SubscriptionForm({
   cards,
   tags = [],
   subscription,
+  teams = [],
+  lockedTeamId,
+  lockedTeamName,
 }: SubscriptionFormProps) {
   const isEdit = subscription !== undefined;
   const action = isEdit
@@ -73,6 +87,29 @@ export function SubscriptionForm({
               type="text"
               defaultValue={subscription?.order_number ?? ""}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="team_id">Team</Label>
+            {lockedTeamId ? (
+              <>
+                <Input
+                  id="team_id"
+                  type="text"
+                  value={lockedTeamName ?? lockedTeamId}
+                  readOnly
+                  disabled
+                />
+                <input type="hidden" name="team_id" value={lockedTeamId} />
+              </>
+            ) : (
+              <TeamPicker
+                teams={teams}
+                name="team_id"
+                includeUnassigned
+                defaultValue={subscription?.team_id ?? undefined}
+              />
+            )}
           </div>
 
           <div className="space-y-1.5">

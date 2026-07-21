@@ -22,6 +22,13 @@ import {
 import { createServiceClient } from "@/lib/supabase/server";
 import type { CandidateTransactionRow, ReviewQueueRow } from "@/lib/types";
 import { confirmMatch, markFailed } from "./actions";
+import RunChecksButton from "./RunChecksButton";
+
+interface ReviewQueueProps {
+  /** Team scope. Server-enforced; a team lead only sees their team's items. */
+  teamId?: string;
+  isAdmin: boolean;
+}
 
 async function confirmAction(formData: FormData): Promise<void> {
   "use server";
@@ -59,12 +66,15 @@ function statusBadgeVariant(
   return "secondary";
 }
 
-export default async function ReviewQueue() {
+export default async function ReviewQueue({
+  teamId,
+  isAdmin,
+}: ReviewQueueProps) {
   const supabase = createServiceClient();
 
-  const { data: queueData, error: queueError } = await supabase
-    .from("review_queue")
-    .select("*");
+  let queueQuery = supabase.from("review_queue").select("*");
+  if (teamId) queueQuery = queueQuery.eq("team_id", teamId);
+  const { data: queueData, error: queueError } = await queueQuery;
   if (queueError) {
     throw new Error(`loading review queue: ${queueError.message}`);
   }
@@ -72,9 +82,16 @@ export default async function ReviewQueue() {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-        Nothing needs review
-      </p>
+      <div className="flex flex-col gap-6">
+        {isAdmin ? (
+          <div className="flex justify-end">
+            <RunChecksButton />
+          </div>
+        ) : null}
+        <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+          Nothing needs review
+        </p>
+      </div>
     );
   }
 
@@ -92,6 +109,11 @@ export default async function ReviewQueue() {
 
   return (
     <div className="flex flex-col gap-6">
+      {isAdmin ? (
+        <div className="flex justify-end">
+          <RunChecksButton />
+        </div>
+      ) : null}
       {items.map((item, index) => (
         <Card key={item.check_id}>
           <CardHeader className="border-b">

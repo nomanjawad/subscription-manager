@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { getAdminUser } from "@/lib/supabase/auth";
+import { getSessionUser } from "@/lib/supabase/auth";
 import { signOut } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,11 +22,17 @@ export const metadata: Metadata = {
   description: "In-house subscription tracking verified against Mercury",
 };
 
-const nav = [
+// Shared pages both roles see (team leads get a team-scoped view of each).
+const baseNav = [
   { href: "/", label: "Dashboard" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/requests", label: "Requests" },
   { href: "/review", label: "Review" },
+];
+// Admin-only pages.
+const adminNav = [
+  { href: "/teams", label: "Teams" },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 export default async function RootLayout({
@@ -33,7 +40,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const admin = await getAdminUser();
+  const session = await getSessionUser();
+  const nav = session
+    ? session.role === "admin"
+      ? [...baseNav, ...adminNav]
+      : baseNav
+    : [];
 
   return (
     <html
@@ -44,10 +56,10 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <header className="border-b bg-card">
           <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-6">
-            <Link href={admin ? "/" : "/request"} className="font-semibold tracking-tight">
+            <Link href={session ? "/" : "/request"} className="font-semibold tracking-tight">
               Subscription Manager
             </Link>
-            {admin ? (
+            {session ? (
               <nav className="flex gap-4 text-sm text-muted-foreground">
                 {nav.map((item) => (
                   <Link
@@ -63,12 +75,17 @@ export default async function RootLayout({
             <span className="ml-auto text-xs rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
               sandbox
             </span>
-            {admin ? (
-              <form action={signOut}>
-                <Button variant="ghost" size="sm" type="submit">
-                  Sign out
-                </Button>
-              </form>
+            {session ? (
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary">
+                  {session.role === "admin" ? "Admin" : "Team lead"}
+                </Badge>
+                <form action={signOut}>
+                  <Button variant="ghost" size="sm" type="submit">
+                    Sign out
+                  </Button>
+                </form>
+              </div>
             ) : null}
           </div>
         </header>

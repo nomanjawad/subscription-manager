@@ -5,6 +5,41 @@ export type BillingCycle = "monthly" | "yearly";
 export type SubscriptionStatus = "active" | "cancelled";
 export type CheckStatus = "pending" | "renewed" | "failed" | "needs_review";
 export type RequestStatus = "requested" | "approved" | "rejected" | "purchased";
+export type UserRole = "admin" | "team_lead";
+
+// ── Teams & roles ──────────────────────────────────────────────────────────
+
+export interface TeamRow {
+  id: string;
+  name: string;
+  auto_approve: boolean;
+  created_at: string;
+}
+
+/** Minimal team shape for the public request form's picker. */
+export interface TeamOption {
+  id: string;
+  name: string;
+}
+
+export interface ProfileRow {
+  id: string; // = auth.users.id
+  email: string;
+  full_name: string | null;
+  role: UserRole;
+  team_id: string | null;
+  created_at: string;
+}
+
+/** A team lead joined with the name of the team they lead (admin UI). */
+export interface TeamLeadRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  team_id: string | null;
+  team_name: string | null;
+  created_at: string;
+}
 
 export interface CardRow {
   id: string;
@@ -33,6 +68,7 @@ export interface SubscriptionRow {
   status: SubscriptionStatus;
   notes: string | null;
   tag: string | null;
+  team_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +83,7 @@ export interface SubscriptionRequestRow {
   amount_estimate: number | null;
   billing_cycle: BillingCycle;
   tag: string | null;
+  team_id: string | null;
   status: RequestStatus;
   review_note: string | null;
   reviewed_at: string | null;
@@ -122,6 +159,8 @@ export interface SubscriptionOverviewRow {
   last_check_date: string | null;
   last_check_failure_reason: string | null;
   tag: string | null;
+  team_id: string | null;
+  team_name: string | null;
 }
 
 export interface ReviewQueueRow {
@@ -136,6 +175,7 @@ export interface ReviewQueueRow {
   currency: string;
   card_last4: string | null;
   mercury_card_id: string | null;
+  team_id: string | null;
 }
 
 // ── RPC return rows ──────────────────────────────────────────────────────
@@ -174,4 +214,30 @@ export interface CandidateTransactionRow {
   posted_at: string | null;
   mercury_card_id: string | null;
   same_card: boolean;
+}
+
+export interface TeamOverviewRow {
+  team_id: string;
+  name: string;
+  auto_approve: boolean;
+  lead_count: number;
+  subscription_count: number;
+  monthly_spend: number;
+  open_request_count: number;
+}
+
+export interface SpendByTeamRow {
+  team_id: string | null;
+  team_name: string;
+  monthly_amount: number;
+  subscription_count: number;
+}
+
+export interface SpendByCardRow {
+  mercury_card_id: string;
+  card_last4: string | null;
+  card_nickname: string | null;
+  card_name: string | null;
+  total_out: number;
+  transaction_count: number;
 }

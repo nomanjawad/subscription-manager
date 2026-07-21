@@ -96,11 +96,22 @@ Independent modules are built by parallel subagents where dependencies allow. Tw
 5. Resolve a needs-review item → point out the app just *learned* that vendor's statement descriptor
 6. Close: "going live = the company's read-only Mercury token + two env vars"
 
+## Phase 3.5 — Teams, roles & analytics *(done)*
+
+Two-role access model layered on the existing JWT auth.
+
+- **Roles:** `admin` and `team_lead`. Role + team live in the Supabase JWT (`app_metadata`) so middleware authorizes without a DB hit, mirrored in a `profiles` table for the admin UI and joins. `ADMIN_EMAILS` remains the bootstrap super-admin (no profile row needed).
+- **Teams (categories):** a `teams` table (`name`, `auto_approve`). Requests and subscriptions carry a `team_id` (FK `ON DELETE SET NULL` → nothing is lost if a team is deleted).
+- **Request routing:** the public form makes the requester pick a team. If that team has `auto_approve`, the request skips manual review and lands straight in "pending purchase"; otherwise it waits for a reviewer.
+- **Team leads** (module `m08-teams`) see and act on **only their own team's** requests, subscriptions, review items, and spend — approve/reject/**purchase** included. Enforced in every server action (they're public endpoints), not just hidden in the UI. Team-scoped reads use the `p_team_id` parameter added to the aggregate RPCs.
+- **Admins** manage teams + team leads (create teams, add a lead with a temporary password via the GoTrue admin API, toggle auto-approve) on `/teams`, and see cross-team + cross-card spend on `/analytics` (`spend_by_team` / `spend_by_card` — the latter covers *all* synced Mercury transactions, not just renewals). `/teams` and `/analytics` are admin-only (middleware `ADMIN_ONLY_PREFIXES`).
+- **Modules added:** `m08-teams` (teams + roles + lead accounts) and `m09-analytics`. Migration `20260721090000_teams_and_roles.sql`.
+
 ## Phase 4 — Production deployment *(only after company approval)*
 
 > Supabase Cloud and auth already exist (done during development). Remaining:
 
-1. **Replace the dev admin credentials** — the dev login is `admin@example.com` / `password` (deliberately throwaway). Create the real admin user(s) in Supabase Auth, update `ADMIN_EMAILS`, delete the dev user
+1. **Replace the dev admin credentials** — the dev login is `admin@example.com` / `password` (deliberately throwaway). Create the real admin user(s) in Supabase Auth, update `ADMIN_EMAILS`, delete the dev user. Then create the real **teams** and add **team leads** (each gets a temporary password to change on first login).
 2. Regenerate `CRON_SECRET` (random 32+ chars) for production
 3. Deploy to Vercel; add `vercel.json` cron hitting `/api/cron/check-renewals` daily (note: Vercel cron sends GET — the route currently accepts POST only; adjust one or the other)
 4. Create a **read-only token** in the company's real Mercury account
