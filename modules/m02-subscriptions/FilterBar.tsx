@@ -4,15 +4,9 @@
 // params (router.replace); the server component re-queries the database.
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@astryxdesign/core/Button";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Selector } from "@astryxdesign/core/Selector";
 
 const ALL = "all";
 const FILTER_KEYS = ["tag", "status", "cycle", "q"] as const;
@@ -65,66 +59,63 @@ export function FilterBar({ tags }: FilterBarProps) {
 
   const hasFilters = FILTER_KEYS.some((key) => searchParams.get(key));
 
+  const tagOptions = [
+    { value: ALL, label: "All tags" },
+    ...tags.map((tag) => ({ value: tag, label: tag })),
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Input
-        type="search"
+      <TextInput
+        label="Search platform or product"
+        isLabelHidden
+        type="text"
         value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
+        onChange={(v) => onSearchChange(v)}
         placeholder="Search platform or product…"
         className="w-56"
-        aria-label="Search platform or product"
       />
 
-      <Select
+      <Selector
+        label="Filter by tag"
+        isLabelHidden
+        placeholder="All tags"
+        options={tagOptions}
         value={searchParams.get("tag") ?? ALL}
-        onValueChange={(value) => setParam("tag", value)}
-      >
-        <SelectTrigger className="w-36" aria-label="Filter by tag">
-          <SelectValue placeholder="All tags" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All tags</SelectItem>
-          {tags.map((tag) => (
-            <SelectItem key={tag} value={tag}>
-              {tag}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        onChange={(v) => setParam("tag", v)}
+        className="w-36"
+      />
 
-      <Select
+      <Selector
+        label="Filter by status"
+        isLabelHidden
+        placeholder="All statuses"
+        options={[
+          { value: ALL, label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "cancelled", label: "Cancelled" },
+        ]}
         value={searchParams.get("status") ?? ALL}
-        onValueChange={(value) => setParam("status", value)}
-      >
-        <SelectTrigger className="w-36" aria-label="Filter by status">
-          <SelectValue placeholder="All statuses" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All statuses</SelectItem>
-          <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="cancelled">Cancelled</SelectItem>
-        </SelectContent>
-      </Select>
+        onChange={(v) => setParam("status", v)}
+        className="w-36"
+      />
 
-      <Select
+      <Selector
+        label="Filter by billing cycle"
+        isLabelHidden
+        placeholder="All cycles"
+        options={[
+          { value: ALL, label: "All cycles" },
+          { value: "monthly", label: "Monthly" },
+          { value: "yearly", label: "Yearly" },
+        ]}
         value={searchParams.get("cycle") ?? ALL}
-        onValueChange={(value) => setParam("cycle", value)}
-      >
-        <SelectTrigger className="w-36" aria-label="Filter by billing cycle">
-          <SelectValue placeholder="All cycles" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All cycles</SelectItem>
-          <SelectItem value="monthly">Monthly</SelectItem>
-          <SelectItem value="yearly">Yearly</SelectItem>
-        </SelectContent>
-      </Select>
+        onChange={(v) => setParam("cycle", v)}
+        className="w-36"
+      />
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={clearAll}>
-          Clear
-        </Button>
+        <Button variant="ghost" size="sm" label="Clear" onClick={clearAll} />
       )}
     </div>
   );

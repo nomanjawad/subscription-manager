@@ -1,16 +1,16 @@
 // m02-subscriptions — async server component rendering the (already DB-filtered)
 // subscription rows. Row actions post straight to the lifecycle server actions.
-import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@astryxdesign/core/Badge";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { LinkButton } from "@/components/LinkButton";
+import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
+  TableHeaderCell,
   TableRow,
-} from "@/components/ui/table";
+} from "@astryxdesign/core/Table";
 import type { CheckStatus, SubscriptionOverviewRow } from "@/lib/types";
 import { cancelSubscription, reactivateSubscription } from "./actions";
 
@@ -20,9 +20,10 @@ interface SubscriptionTableProps {
 
 function StatusBadge({ status }: { status: SubscriptionOverviewRow["status"] }) {
   return (
-    <Badge variant={status === "active" ? "default" : "secondary"}>
-      {status}
-    </Badge>
+    <Badge
+      variant={status === "active" ? "success" : "neutral"}
+      label={status}
+    />
   );
 }
 
@@ -35,19 +36,19 @@ function CheckBadge({
 }) {
   switch (status) {
     case "renewed":
-      return <Badge variant="secondary">renewed</Badge>;
+      return <Badge variant="success" label="renewed" />;
     case "failed":
       return (
-        <Badge variant="destructive" title={failureReason ?? undefined}>
-          failed
-        </Badge>
+        <span title={failureReason ?? undefined}>
+          <Badge variant="error" label="failed" />
+        </span>
       );
     case "needs_review":
-      return <Badge variant="outline">needs review</Badge>;
+      return <Badge variant="warning" label="needs review" />;
     case "pending":
-      return <Badge variant="ghost">pending</Badge>;
+      return <Badge variant="neutral" label="pending" />;
     default:
-      return <span className="text-muted-foreground">—</span>;
+      return <span className="text-secondary">—</span>;
   }
 }
 
@@ -58,101 +59,99 @@ function cardLabel(row: SubscriptionOverviewRow): string {
 }
 
 export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
+  if (rows.length === 0) {
+    return (
+      <Card padding={8}>
+        <Text as="p" type="supporting" justify="center" className="block">
+          No subscriptions match — adjust the filters or add one.
+        </Text>
+      </Card>
+    );
+  }
+
   return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Platform</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Tag</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Next renewal</TableHead>
-            <TableHead>Card</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Last check</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+    <Card padding={0} className="overflow-hidden">
+      <Table density="compact">
+        <TableRow isHeaderRow>
+          <TableHeaderCell>Platform</TableHeaderCell>
+          <TableHeaderCell>Team</TableHeaderCell>
+          <TableHeaderCell>Tag</TableHeaderCell>
+          <TableHeaderCell>Amount</TableHeaderCell>
+          <TableHeaderCell>Next renewal</TableHeaderCell>
+          <TableHeaderCell>Card</TableHeaderCell>
+          <TableHeaderCell>Status</TableHeaderCell>
+          <TableHeaderCell>Last check</TableHeaderCell>
+          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+        </TableRow>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell>
+              <div className="font-medium text-primary">{row.platform}</div>
+              {row.product && (
+                <div className="text-xs text-secondary">{row.product}</div>
+              )}
+            </TableCell>
+            <TableCell>{row.team_name ?? "Unassigned"}</TableCell>
+            <TableCell>
+              {row.tag ? (
+                <Badge variant="neutral" label={row.tag} />
+              ) : (
+                <span className="text-secondary">—</span>
+              )}
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {Number(row.amount).toFixed(2)} {row.currency}
+              <span className="text-xs text-secondary">
+                {" "}
+                / {row.billing_cycle === "monthly" ? "mo" : "yr"}
+              </span>
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {row.next_renewal_date}
+            </TableCell>
+            <TableCell>{cardLabel(row)}</TableCell>
+            <TableCell>
+              <StatusBadge status={row.status} />
+            </TableCell>
+            <TableCell>
+              <CheckBadge
+                status={row.last_check_status}
+                failureReason={row.last_check_failure_reason}
+              />
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="inline-flex items-center gap-1">
+                <LinkButton
+                  href={`/subscriptions/new?edit=${row.id}`}
+                  label="Edit"
+                  variant="ghost"
+                  size="sm"
+                />
+                {row.status === "active" ? (
+                  <form action={cancelSubscription.bind(null, row.id)}>
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      label="Cancel"
+                      className="text-error"
+                    />
+                  </form>
+                ) : (
+                  <form action={reactivateSubscription.bind(null, row.id)}>
+                    <Button
+                      type="submit"
+                      variant="ghost"
+                      size="sm"
+                      label="Reactivate"
+                    />
+                  </form>
+                )}
+              </div>
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={9}
-                className="h-24 text-center text-muted-foreground"
-              >
-                No subscriptions match — adjust the filters or add one.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <div className="font-medium">{row.platform}</div>
-                  {row.product && (
-                    <div className="text-xs text-muted-foreground">
-                      {row.product}
-                    </div>
-                  )}
-                </TableCell>
-                <TableCell>{row.team_name ?? "Unassigned"}</TableCell>
-                <TableCell>
-                  {row.tag ? (
-                    <Badge variant="outline">{row.tag}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {Number(row.amount).toFixed(2)} {row.currency}
-                  <span className="text-xs text-muted-foreground">
-                    {" "}
-                    / {row.billing_cycle === "monthly" ? "mo" : "yr"}
-                  </span>
-                </TableCell>
-                <TableCell>{row.next_renewal_date}</TableCell>
-                <TableCell>{cardLabel(row)}</TableCell>
-                <TableCell>
-                  <StatusBadge status={row.status} />
-                </TableCell>
-                <TableCell>
-                  <CheckBadge
-                    status={row.last_check_status}
-                    failureReason={row.last_check_failure_reason}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="inline-flex items-center gap-1">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={`/subscriptions/new?edit=${row.id}`}>
-                        Edit
-                      </Link>
-                    </Button>
-                    {row.status === "active" ? (
-                      <form action={cancelSubscription.bind(null, row.id)}>
-                        <Button
-                          type="submit"
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          Cancel
-                        </Button>
-                      </form>
-                    ) : (
-                      <form action={reactivateSubscription.bind(null, row.id)}>
-                        <Button type="submit" variant="ghost" size="sm">
-                          Reactivate
-                        </Button>
-                      </form>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
+        ))}
       </Table>
-    </div>
+    </Card>
   );
 }

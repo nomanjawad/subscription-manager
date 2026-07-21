@@ -5,7 +5,7 @@
 // failure it rolls back and shows an inline error.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@astryxdesign/core/Switch";
 import { setAutoApprove } from "./actions";
 
 interface AutoApproveToggleProps {
@@ -38,13 +38,14 @@ export function AutoApproveToggle({ teamId, value }: AutoApproveToggleProps) {
   return (
     <div className="inline-flex flex-col gap-1">
       <Switch
-        checked={checked}
-        onCheckedChange={onChange}
-        disabled={pending}
-        aria-label="Auto-approve requests for this team"
+        label="Auto-approve requests for this team"
+        isLabelHidden
+        value={checked}
+        onChange={(next) => onChange(next)}
+        isDisabled={pending}
       />
       {error && (
-        <span className="text-xs text-destructive" role="alert">
+        <span className="text-xs text-error" role="alert">
           {error}
         </span>
       )}

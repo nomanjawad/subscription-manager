@@ -7,14 +7,8 @@
 // Each uses useTransition + router.refresh(); errors surface inline.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@astryxdesign/core/Button";
+import { Selector } from "@astryxdesign/core/Selector";
 import type { TeamOption } from "@/lib/types";
 import { deleteTeam, reassignTeamLead, removeTeamLead } from "./actions";
 
@@ -51,38 +45,33 @@ export function DeleteTeamButton({
         type="button"
         variant="ghost"
         size="sm"
+        label="Delete"
         onClick={() => setConfirming(true)}
-      >
-        Delete
-      </Button>
+      />
     );
   }
 
   return (
     <div className="inline-flex items-center gap-2">
-      <span className="text-xs text-muted-foreground">
-        Delete “{teamName}”?
-      </span>
+      <span className="text-xs text-secondary">Delete “{teamName}”?</span>
       <Button
         type="button"
         variant="destructive"
         size="sm"
+        label={pending ? "Deleting…" : "Confirm"}
         onClick={onDelete}
-        disabled={pending}
-      >
-        {pending ? "Deleting…" : "Confirm"}
-      </Button>
+        isDisabled={pending}
+      />
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
+        label="Cancel"
         onClick={() => setConfirming(false)}
-        disabled={pending}
-      >
-        Cancel
-      </Button>
+        isDisabled={pending}
+      />
       {error && (
-        <span className="text-xs text-destructive" role="alert">
+        <span className="text-xs text-error" role="alert">
           {error}
         </span>
       )}
@@ -115,10 +104,9 @@ export function RemoveLeadButton({ userId }: { userId: string }) {
         type="button"
         variant="ghost"
         size="sm"
+        label="Remove"
         onClick={() => setConfirming(true)}
-      >
-        Remove
-      </Button>
+      />
     );
   }
 
@@ -128,22 +116,20 @@ export function RemoveLeadButton({ userId }: { userId: string }) {
         type="button"
         variant="destructive"
         size="sm"
+        label={pending ? "Removing…" : "Confirm"}
         onClick={onRemove}
-        disabled={pending}
-      >
-        {pending ? "Removing…" : "Confirm"}
-      </Button>
+        isDisabled={pending}
+      />
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
+        label="Cancel"
         onClick={() => setConfirming(false)}
-        disabled={pending}
-      >
-        Cancel
-      </Button>
+        isDisabled={pending}
+      />
       {error && (
-        <span className="text-xs text-destructive" role="alert">
+        <span className="text-xs text-error" role="alert">
           {error}
         </span>
       )}
@@ -181,23 +167,26 @@ export function ReassignLeadSelect({
     });
   }
 
+  const options = [
+    { value: UNASSIGNED, label: "Unassigned" },
+    ...teams.map((team) => ({ value: team.id, label: team.name })),
+  ];
+
   return (
     <div className="inline-flex flex-col gap-1">
-      <Select value={value} onValueChange={onChange} disabled={pending}>
-        <SelectTrigger className="w-40" size="sm">
-          <SelectValue placeholder="Select a team" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-          {teams.map((team) => (
-            <SelectItem key={team.id} value={team.id}>
-              {team.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Selector
+        label="Reassign team"
+        isLabelHidden
+        size="sm"
+        placeholder="Select a team"
+        options={options}
+        value={value}
+        onChange={onChange}
+        isDisabled={pending}
+        className="w-40"
+      />
       {error && (
-        <span className="text-xs text-destructive" role="alert">
+        <span className="text-xs text-error" role="alert">
           {error}
         </span>
       )}

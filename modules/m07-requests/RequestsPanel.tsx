@@ -1,18 +1,17 @@
 // m07-requests — admin panel (async server component). Tabs are plain links
 // (?tab=…) so each tab's rows are fetched with a DB-side status filter; only
 // the active tab's table is queried and rendered.
-import Link from "next/link";
 import { getActiveCards } from "@/modules/m01-cards/queries";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@astryxdesign/core/Badge";
+import { Card } from "@astryxdesign/core/Card";
+import { LinkButton } from "@/components/LinkButton";
+import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
+  TableHeaderCell,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from "@astryxdesign/core/Table";
 import type { RequestStatus, SubscriptionRequestRow } from "@/lib/types";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
 import { PurchaseDialog } from "./PurchaseDialog";
@@ -30,21 +29,13 @@ function normalizeTab(tab: string | undefined): RequestsTab {
 function StatusBadge({ status }: { status: RequestStatus }) {
   switch (status) {
     case "purchased":
-      return (
-        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-          purchased
-        </Badge>
-      );
+      return <Badge variant="success" label="purchased" />;
     case "rejected":
-      return <Badge variant="destructive">rejected</Badge>;
+      return <Badge variant="error" label="rejected" />;
     case "approved":
-      return (
-        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-          pending purchase
-        </Badge>
-      );
+      return <Badge variant="warning" label="pending purchase" />;
     default:
-      return <Badge variant="secondary">requested</Badge>;
+      return <Badge variant="neutral" label="requested" />;
   }
 }
 
@@ -61,8 +52,8 @@ function fmtEstimate(row: SubscriptionRequestRow): string {
 function Requester({ row }: { row: SubscriptionRequestRow }) {
   return (
     <div>
-      <div className="font-medium">{row.requester_name}</div>
-      <div className="text-xs text-muted-foreground">{row.requester_email}</div>
+      <div className="font-medium text-primary">{row.requester_name}</div>
+      <div className="text-xs text-secondary">{row.requester_email}</div>
     </div>
   );
 }
@@ -70,16 +61,16 @@ function Requester({ row }: { row: SubscriptionRequestRow }) {
 function PlatformProduct({ row }: { row: SubscriptionRequestRow }) {
   return (
     <div>
-      <div className="font-medium">{row.platform}</div>
+      <div className="font-medium text-primary">{row.platform}</div>
       {row.product && (
-        <div className="text-xs text-muted-foreground">{row.product}</div>
+        <div className="text-xs text-secondary">{row.product}</div>
       )}
     </div>
   );
 }
 
 function Reason({ reason }: { reason: string | null }) {
-  if (!reason) return <span className="text-muted-foreground">—</span>;
+  if (!reason) return <span className="text-secondary">—</span>;
   return (
     <span title={reason} className="block max-w-56 truncate">
       {reason}
@@ -95,15 +86,17 @@ function TeamName({
   teamNames: Map<string, string>;
 }) {
   const name = row.team_id ? teamNames.get(row.team_id) : null;
-  if (!name) return <span className="text-muted-foreground">Unassigned</span>;
+  if (!name) return <span className="text-secondary">Unassigned</span>;
   return <span>{name}</span>;
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-      {message}
-    </div>
+    <Card padding={8}>
+      <Text as="p" type="supporting" justify="center" className="block">
+        {message}
+      </Text>
+    </Card>
   );
 }
 
@@ -120,50 +113,46 @@ function RequestedTable({
     return <EmptyState message="No open requests — all caught up." />;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Requester</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Platform</TableHead>
-            <TableHead>Est. amount</TableHead>
-            <TableHead>Cycle</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Submitted</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+    <Card padding={0} className="overflow-hidden">
+      <Table density="compact">
+        <TableRow isHeaderRow>
+          <TableHeaderCell>Requester</TableHeaderCell>
+          <TableHeaderCell>Team</TableHeaderCell>
+          <TableHeaderCell>Platform</TableHeaderCell>
+          <TableHeaderCell>Est. amount</TableHeaderCell>
+          <TableHeaderCell>Cycle</TableHeaderCell>
+          <TableHeaderCell>Reason</TableHeaderCell>
+          <TableHeaderCell>Submitted</TableHeaderCell>
+          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+        </TableRow>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell>
+              <Requester row={row} />
+            </TableCell>
+            <TableCell>
+              <TeamName row={row} teamNames={teamNames} />
+            </TableCell>
+            <TableCell>
+              <PlatformProduct row={row} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtEstimate(row)}
+            </TableCell>
+            <TableCell>{row.billing_cycle}</TableCell>
+            <TableCell>
+              <Reason reason={row.reason} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtDate(row.created_at)}
+            </TableCell>
+            <TableCell className="text-right">
+              <RequestActions requestId={row.id} />
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Requester row={row} />
-              </TableCell>
-              <TableCell>
-                <TeamName row={row} teamNames={teamNames} />
-              </TableCell>
-              <TableCell>
-                <PlatformProduct row={row} />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtEstimate(row)}
-              </TableCell>
-              <TableCell>{row.billing_cycle}</TableCell>
-              <TableCell>
-                <Reason reason={row.reason} />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtDate(row.created_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                <RequestActions requestId={row.id} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
+        ))}
       </Table>
-    </div>
+    </Card>
   );
 }
 
@@ -179,50 +168,46 @@ async function PendingTable({
   }
   const cards = await getActiveCards();
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Requester</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Platform</TableHead>
-            <TableHead>Est. amount</TableHead>
-            <TableHead>Cycle</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Approved</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+    <Card padding={0} className="overflow-hidden">
+      <Table density="compact">
+        <TableRow isHeaderRow>
+          <TableHeaderCell>Requester</TableHeaderCell>
+          <TableHeaderCell>Team</TableHeaderCell>
+          <TableHeaderCell>Platform</TableHeaderCell>
+          <TableHeaderCell>Est. amount</TableHeaderCell>
+          <TableHeaderCell>Cycle</TableHeaderCell>
+          <TableHeaderCell>Reason</TableHeaderCell>
+          <TableHeaderCell>Approved</TableHeaderCell>
+          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+        </TableRow>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell>
+              <Requester row={row} />
+            </TableCell>
+            <TableCell>
+              <TeamName row={row} teamNames={teamNames} />
+            </TableCell>
+            <TableCell>
+              <PlatformProduct row={row} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtEstimate(row)}
+            </TableCell>
+            <TableCell>{row.billing_cycle}</TableCell>
+            <TableCell>
+              <Reason reason={row.reason} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtDate(row.reviewed_at)}
+            </TableCell>
+            <TableCell className="text-right">
+              <PurchaseDialog request={row} cards={cards} />
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Requester row={row} />
-              </TableCell>
-              <TableCell>
-                <TeamName row={row} teamNames={teamNames} />
-              </TableCell>
-              <TableCell>
-                <PlatformProduct row={row} />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtEstimate(row)}
-              </TableCell>
-              <TableCell>{row.billing_cycle}</TableCell>
-              <TableCell>
-                <Reason reason={row.reason} />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtDate(row.reviewed_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                <PurchaseDialog request={row} cards={cards} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
+        ))}
       </Table>
-    </div>
+    </Card>
   );
 }
 
@@ -237,48 +222,44 @@ function HistoryTable({
     return <EmptyState message="No purchased or rejected requests yet." />;
   }
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Requester</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Platform</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Review note</TableHead>
-            <TableHead>Reviewed</TableHead>
-            <TableHead>Submitted</TableHead>
+    <Card padding={0} className="overflow-hidden">
+      <Table density="compact">
+        <TableRow isHeaderRow>
+          <TableHeaderCell>Requester</TableHeaderCell>
+          <TableHeaderCell>Team</TableHeaderCell>
+          <TableHeaderCell>Platform</TableHeaderCell>
+          <TableHeaderCell>Status</TableHeaderCell>
+          <TableHeaderCell>Review note</TableHeaderCell>
+          <TableHeaderCell>Reviewed</TableHeaderCell>
+          <TableHeaderCell>Submitted</TableHeaderCell>
+        </TableRow>
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell>
+              <Requester row={row} />
+            </TableCell>
+            <TableCell>
+              <TeamName row={row} teamNames={teamNames} />
+            </TableCell>
+            <TableCell>
+              <PlatformProduct row={row} />
+            </TableCell>
+            <TableCell>
+              <StatusBadge status={row.status} />
+            </TableCell>
+            <TableCell>
+              <Reason reason={row.review_note} />
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtDate(row.reviewed_at)}
+            </TableCell>
+            <TableCell className="whitespace-nowrap">
+              {fmtDate(row.created_at)}
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>
-                <Requester row={row} />
-              </TableCell>
-              <TableCell>
-                <TeamName row={row} teamNames={teamNames} />
-              </TableCell>
-              <TableCell>
-                <PlatformProduct row={row} />
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={row.status} />
-              </TableCell>
-              <TableCell>
-                <Reason reason={row.review_note} />
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtDate(row.reviewed_at)}
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtDate(row.created_at)}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
+        ))}
       </Table>
-    </div>
+    </Card>
   );
 }
 
@@ -289,6 +270,25 @@ const TAB_STATUS: Record<RequestsTab, RequestStatus | RequestStatus[]> = {
   pending: "approved",
   history: ["purchased", "rejected"],
 };
+
+function TabLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <LinkButton
+      href={href}
+      label={label}
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
+    />
+  );
+}
 
 export async function RequestsPanel({
   tab,
@@ -308,23 +308,23 @@ export async function RequestsPanel({
 
   return (
     <div className="space-y-4">
-      <Tabs value={active}>
-        <TabsList>
-          <TabsTrigger value="requested" asChild>
-            <Link href="/requests?tab=requested">
-              Requested ({counts.requested})
-            </Link>
-          </TabsTrigger>
-          <TabsTrigger value="pending" asChild>
-            <Link href="/requests?tab=pending">
-              Pending purchase ({counts.approved})
-            </Link>
-          </TabsTrigger>
-          <TabsTrigger value="history" asChild>
-            <Link href="/requests?tab=history">History</Link>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="inline-flex items-center gap-1 rounded-lg border border-default p-1">
+        <TabLink
+          href="/requests?tab=requested"
+          label={`Requested (${counts.requested})`}
+          active={active === "requested"}
+        />
+        <TabLink
+          href="/requests?tab=pending"
+          label={`Pending purchase (${counts.approved})`}
+          active={active === "pending"}
+        />
+        <TabLink
+          href="/requests?tab=history"
+          label="History"
+          active={active === "history"}
+        />
+      </div>
 
       {active === "requested" && (
         <RequestedTable rows={rows} teamNames={teamNames} />

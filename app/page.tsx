@@ -1,7 +1,10 @@
 // Thin route — mounts the m06-dashboard module.
 import Dashboard from "@/modules/m06-dashboard/Dashboard";
 import { getSessionUser } from "@/lib/supabase/auth";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 
 // The dashboard reads live DB state (RPCs) and is refreshed by the cron
 // route / sync APIs, which can't revalidate paths — render it per request
@@ -23,16 +26,12 @@ export default async function Home({
   if (isTeamLead && !session?.teamId) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        </div>
-        <Card size="sm">
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              You haven&apos;t been assigned to a team yet — ask an admin to add
-              you to a team.
-            </p>
-          </CardContent>
+        <Heading level={1}>Dashboard</Heading>
+        <Card padding={5}>
+          <Text type="supporting">
+            You haven&apos;t been assigned to a team yet — ask an admin to add
+            you to a team.
+          </Text>
         </Card>
       </div>
     );
@@ -44,12 +43,10 @@ export default async function Home({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {subtitle}
-        </p>
-      </div>
+      <VStack gap={1}>
+        <Heading level={1}>Dashboard</Heading>
+        <Text type="supporting">{subtitle}</Text>
+      </VStack>
       {isTeamLead ? (
         <Dashboard teamId={session!.teamId!} />
       ) : (

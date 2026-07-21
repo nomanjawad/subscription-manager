@@ -3,26 +3,21 @@
 // m07-requests — public request form (/request). Posts to submitRequest via
 // useActionState; on success it swaps to a thank-you state with a
 // "Submit another" button that remounts the form (key bump resets everything).
+//
+// Astryx inputs are controlled (value/onChange, no `name`), so every value is
+// mirrored into a hidden input for the server-action FormData submit.
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@astryxdesign/core/Card";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { NumberInput } from "@astryxdesign/core/NumberInput";
+import { Selector } from "@astryxdesign/core/Selector";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
 import type { TeamOption } from "@/lib/types";
 import { TeamPicker } from "@/modules/m08-teams/TeamPicker";
 import { submitRequest, type SubmitState } from "./actions";
@@ -52,143 +47,160 @@ function RequestFormInner({
     initialState,
   );
 
+  const [requesterName, setRequesterName] = useState("");
+  const [requesterEmail, setRequesterEmail] = useState("");
+  const [platform, setPlatform] = useState("");
+  const [product, setProduct] = useState("");
+  const [amountEstimate, setAmountEstimate] = useState<number | null>(null);
+  const [billingCycle, setBillingCycle] = useState("monthly");
+  const [reason, setReason] = useState("");
+
   if (state.ok) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Request submitted</CardTitle>
-          <CardDescription>
-            Thanks! The admin team will review your request and get back to
-            you by email.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button type="button" variant="outline" onClick={onReset}>
-            Submit another
-          </Button>
-        </CardFooter>
+      <Card padding={6}>
+        <VStack gap={4}>
+          <VStack gap={1}>
+            <Heading level={3}>Request submitted</Heading>
+            <Text type="supporting">
+              Thanks! The admin team will review your request and get back to
+              you by email.
+            </Text>
+          </VStack>
+          <HStack>
+            <Button
+              label="Submit another"
+              type="button"
+              variant="secondary"
+              onClick={onReset}
+            />
+          </HStack>
+        </VStack>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>New request</CardTitle>
-        <CardDescription>
+    <Card padding={6}>
+      <VStack gap={1}>
+        <Heading level={3}>New request</Heading>
+        <Text type="supporting">
           Tell us what you need — fields marked * are required.
-        </CardDescription>
-      </CardHeader>
+        </Text>
+      </VStack>
+
       <form action={formAction}>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="requester_name">Your name *</Label>
-            <Input
-              id="requester_name"
-              name="requester_name"
-              required
-              maxLength={200}
+        <input type="hidden" name="requester_name" value={requesterName} />
+        <input type="hidden" name="requester_email" value={requesterEmail} />
+        <input type="hidden" name="platform" value={platform} />
+        <input type="hidden" name="product" value={product} />
+        <input
+          type="hidden"
+          name="amount_estimate"
+          value={amountEstimate === null ? "" : String(amountEstimate)}
+        />
+        <input type="hidden" name="billing_cycle" value={billingCycle} />
+        <input type="hidden" name="reason" value={reason} />
+
+        <VStack gap={4} paddingBlock={4}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextInput
+              label="Your name"
+              value={requesterName}
+              onChange={setRequesterName}
+              isRequired
               placeholder="Jane Doe"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="requester_email">Your email *</Label>
-            <Input
-              id="requester_email"
-              name="requester_email"
+            <TextInput
+              label="Your email"
               type="email"
-              required
-              maxLength={200}
+              value={requesterEmail}
+              onChange={setRequesterEmail}
+              isRequired
               placeholder="jane@company.com"
             />
-          </div>
 
-          {teams.length > 0 ? (
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>Team / category *</Label>
-              <TeamPicker
-                teams={teams}
-                name="team_id"
-                required
-                placeholder="Choose a team"
-              />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground sm:col-span-2">
-              No teams have been set up yet — your request will be submitted
-              unassigned.
-            </p>
-          )}
+            {teams.length > 0 ? (
+              <div className="sm:col-span-2">
+                <VStack gap={1}>
+                  <Text type="label" as="label">
+                    Team / category *
+                  </Text>
+                  <TeamPicker
+                    teams={teams}
+                    name="team_id"
+                    required
+                    placeholder="Choose a team"
+                  />
+                </VStack>
+              </div>
+            ) : (
+              <div className="sm:col-span-2">
+                <Text type="supporting">
+                  No teams have been set up yet — your request will be submitted
+                  unassigned.
+                </Text>
+              </div>
+            )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="platform">Platform *</Label>
-            <Input
-              id="platform"
-              name="platform"
-              required
-              maxLength={200}
+            <TextInput
+              label="Platform"
+              value={platform}
+              onChange={setPlatform}
+              isRequired
               placeholder="e.g. Figma"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="product">Product / plan</Label>
-            <Input
-              id="product"
-              name="product"
-              maxLength={200}
+            <TextInput
+              label="Product / plan"
+              value={product}
+              onChange={setProduct}
               placeholder="e.g. Professional plan"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="amount_estimate">Estimated cost</Label>
-            <Input
-              id="amount_estimate"
-              name="amount_estimate"
-              type="number"
-              min="0.01"
-              step="0.01"
+            <NumberInput
+              label="Estimated cost"
+              value={amountEstimate}
+              onChange={setAmountEstimate}
+              min={0.01}
+              step={0.01}
+              hasClear
               placeholder="0.00"
             />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="billing_cycle">Billing cycle</Label>
-            <Select name="billing_cycle" defaultValue="monthly">
-              <SelectTrigger id="billing_cycle" className="w-full">
-                <SelectValue placeholder="Billing cycle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="reason">Why do you need it?</Label>
-            <Textarea
-              id="reason"
-              name="reason"
-              rows={3}
-              maxLength={2000}
-              placeholder="A sentence or two helps us review faster."
+            <Selector
+              label="Billing cycle"
+              value={billingCycle}
+              onChange={setBillingCycle}
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "yearly", label: "Yearly" },
+              ]}
             />
+
+            <div className="sm:col-span-2">
+              <TextArea
+                label="Why do you need it?"
+                value={reason}
+                onChange={setReason}
+                rows={3}
+                maxLength={2000}
+                placeholder="A sentence or two helps us review faster."
+              />
+            </div>
+
+            {state.error ? (
+              <div className="sm:col-span-2">
+                <Banner status="error" title={state.error} container="card" />
+              </div>
+            ) : null}
           </div>
 
-          {state.error && (
-            <p className="text-sm text-destructive sm:col-span-2" role="alert">
-              {state.error}
-            </p>
-          )}
-        </CardContent>
-        <CardFooter className="mt-6">
-          <Button type="submit" disabled={pending}>
-            {pending ? "Submitting…" : "Submit request"}
-          </Button>
-        </CardFooter>
+          <HStack>
+            <Button
+              label={pending ? "Submitting…" : "Submit request"}
+              type="submit"
+              variant="primary"
+              isLoading={pending}
+            />
+          </HStack>
+        </VStack>
       </form>
     </Card>
   );

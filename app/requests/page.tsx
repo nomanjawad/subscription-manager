@@ -1,4 +1,7 @@
 // Thin admin route — mounts the m07-requests panel. Middleware guards access.
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { RequestsPanel } from "@/modules/m07-requests/RequestsPanel";
 
@@ -20,20 +23,18 @@ export default async function RequestsPage({
     if (!session.teamId) {
       return (
         <div className="space-y-8">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Subscription requests
-          </h1>
-          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            You haven&apos;t been assigned to a team yet — ask an admin.
-          </div>
+          <Heading level={1}>Subscription requests</Heading>
+          <Card padding={5}>
+            <Text type="supporting">
+              You haven&apos;t been assigned to a team yet — ask an admin.
+            </Text>
+          </Card>
         </div>
       );
     }
     return (
       <div className="space-y-8">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Subscription requests
-        </h1>
+        <Heading level={1}>Subscription requests</Heading>
         <RequestsPanel tab={tab} teamId={session.teamId} />
       </div>
     );
@@ -41,9 +42,7 @@ export default async function RequestsPage({
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Subscription requests
-      </h1>
+      <Heading level={1}>Subscription requests</Heading>
       <RequestsPanel tab={tab} />
     </div>
   );

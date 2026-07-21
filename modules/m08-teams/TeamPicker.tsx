@@ -1,20 +1,15 @@
 "use client";
 
-// m08-teams — team <Select> that submits inside a plain <form>.
-// PUBLIC CONTRACT — consumed by the request form; keep props stable.
+// m08-teams — team picker that submits inside a plain <form>.
+// PUBLIC CONTRACT — consumed by the request form and SubscriptionForm; keep
+// props and the hidden-input submission behaviour stable.
 //
-// Radix Select won't post a value on its own and its item values must be
-// non-empty, so (following m01 CardPicker's approach) we drive a hidden input
-// from the selected value. The "Unassigned" option uses a sentinel value
-// ("none") that maps to an empty string in the submitted field.
+// Astryx Selector is controlled and won't post a value on its own, so (as with
+// m01 CardPicker) we drive a hidden input from the selected value. The
+// "Unassigned" option uses a sentinel ("none") that maps to an empty string in
+// the submitted field.
 import { useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Selector } from "@astryxdesign/core/Selector";
 import type { TeamOption } from "@/lib/types";
 
 const UNASSIGNED = "none";
@@ -36,7 +31,7 @@ export function TeamPicker({
   placeholder = "Select a team",
   includeUnassigned = false,
 }: TeamPickerProps) {
-  // Radix value: sentinel for unassigned, else the team id (or "" = nothing).
+  // Selector value: sentinel for unassigned, else the team id (or "" = nothing).
   const [value, setValue] = useState<string>(() => {
     if (defaultValue) return defaultValue;
     return includeUnassigned ? UNASSIGNED : "";
@@ -45,24 +40,23 @@ export function TeamPicker({
   // The hidden field carries the real submitted value: "" for unassigned.
   const submitted = value === UNASSIGNED ? "" : value;
 
+  const options = [
+    ...(includeUnassigned ? [{ value: UNASSIGNED, label: "Unassigned" }] : []),
+    ...teams.map((team) => ({ value: team.id, label: team.name })),
+  ];
+
   return (
     <>
       <input type="hidden" name={name} value={submitted} required={required} />
-      <Select value={value || undefined} onValueChange={setValue}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {includeUnassigned && (
-            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-          )}
-          {teams.map((team) => (
-            <SelectItem key={team.id} value={team.id}>
-              {team.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Selector
+        label={placeholder}
+        isLabelHidden
+        placeholder={placeholder}
+        options={options}
+        value={value || undefined}
+        onChange={setValue}
+        isRequired={required}
+      />
     </>
   );
 }

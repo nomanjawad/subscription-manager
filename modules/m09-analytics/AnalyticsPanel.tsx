@@ -1,14 +1,17 @@
 // m09-analytics — admin-only, async server component. Data comes exclusively
 // from the three RPCs in ./queries.ts; all aggregation happens in Postgres.
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Banner } from "@astryxdesign/core/Banner";
+import { Card } from "@astryxdesign/core/Card";
+import { Divider } from "@astryxdesign/core/Divider";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import {
   Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
+  TableHeaderCell,
   TableRow,
-} from "@/components/ui/table";
+} from "@astryxdesign/core/Table";
 import { DonutChart } from "@/components/charts/Charts";
 import {
   getOverallTotals,
@@ -36,9 +39,9 @@ function money(amount: number, currency = "USD"): string {
 type Tone = "default" | "amber" | "red";
 
 const VALUE_TONE: Record<Tone, string> = {
-  default: "text-foreground",
-  amber: "text-amber-600 dark:text-amber-400",
-  red: "text-destructive",
+  default: "text-primary",
+  amber: "text-warning",
+  red: "text-error",
 };
 
 function StatTile({
@@ -51,15 +54,13 @@ function StatTile({
   tone?: Tone;
 }) {
   return (
-    <Card size="sm" className="h-full">
-      <CardContent>
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p
-          className={`mt-1.5 text-2xl font-semibold tracking-tight ${VALUE_TONE[tone]}`}
-        >
+    <Card padding={4} className="h-full">
+      <VStack gap={1}>
+        <Text type="supporting">{label}</Text>
+        <Text size="2xl" weight="semibold" className={VALUE_TONE[tone]}>
           {value}
-        </p>
-      </CardContent>
+        </Text>
+      </VStack>
     </Card>
   );
 }
@@ -72,20 +73,31 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card size="sm" className="h-full">
-      <CardHeader className="border-b">
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
+    <Card padding={0} className="h-full">
+      <div className="px-5 py-4">
+        <Heading level={3}>{title}</Heading>
+      </div>
+      <Divider />
       {children}
     </Card>
   );
 }
 
+/** Padded content region inside a SectionCard (tables render full-bleed). */
+function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="px-5 py-4">{children}</div>;
+}
+
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+    <Text
+      as="p"
+      type="supporting"
+      justify="center"
+      className="block px-5 py-8 text-center"
+    >
       {children}
-    </p>
+    </Text>
   );
 }
 
@@ -113,10 +125,12 @@ export default async function AnalyticsPanel() {
   return (
     <div className="space-y-6">
       {totals === null && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
-          Database not ready — start local Supabase (<code>supabase start</code>)
-          and apply the migrations, then reload this page.
-        </div>
+        <Banner
+          status="warning"
+          title="Database not ready"
+          description="Start local Supabase (supabase start) and apply the migrations, then reload this page."
+          container="card"
+        />
       )}
 
       {/* Overall stat tiles (all teams) */}
@@ -151,21 +165,23 @@ export default async function AnalyticsPanel() {
           {byTeam.length === 0 ? (
             <EmptyState>No team spend to report yet.</EmptyState>
           ) : (
-            <CardContent className="space-y-4">
-              <DonutChart
-                data={byTeam.map((row) => ({
-                  label: `${row.team_name} · ${row.subscription_count} ${
-                    row.subscription_count === 1 ? "sub" : "subs"
-                  }`,
-                  value: row.monthly_amount,
-                }))}
-                formatValue={(n) => money(n)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Normalized monthly subscription cost ·{" "}
-                {money(totalTeamSpend)}/mo across all teams.
-              </p>
-            </CardContent>
+            <Panel>
+              <VStack gap={4}>
+                <DonutChart
+                  data={byTeam.map((row) => ({
+                    label: `${row.team_name} · ${row.subscription_count} ${
+                      row.subscription_count === 1 ? "sub" : "subs"
+                    }`,
+                    value: row.monthly_amount,
+                  }))}
+                  formatValue={(n) => money(n)}
+                />
+                <Text as="p" type="supporting" className="block">
+                  Normalized monthly subscription cost ·{" "}
+                  {money(totalTeamSpend)}/mo across all teams.
+                </Text>
+              </VStack>
+            </Panel>
           )}
         </SectionCard>
 
@@ -175,42 +191,36 @@ export default async function AnalyticsPanel() {
             <EmptyState>No card transactions synced yet.</EmptyState>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="px-4 text-xs text-muted-foreground">
-                      Card
-                    </TableHead>
-                    <TableHead className="px-4 text-right text-xs text-muted-foreground">
-                      Total spent
-                    </TableHead>
-                    <TableHead className="px-4 text-right text-xs text-muted-foreground">
-                      Transactions
-                    </TableHead>
+              <Table density="compact">
+                <TableRow isHeaderRow>
+                  <TableHeaderCell>Card</TableHeaderCell>
+                  <TableHeaderCell className="text-right">
+                    Total spent
+                  </TableHeaderCell>
+                  <TableHeaderCell className="text-right">
+                    Transactions
+                  </TableHeaderCell>
+                </TableRow>
+                {byCard.map((row) => (
+                  <TableRow key={row.mercury_card_id}>
+                    <TableCell className="font-medium text-primary">
+                      {cardLabel(row)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {money(row.total_out)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-secondary">
+                      {row.transaction_count}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {byCard.map((row) => (
-                    <TableRow key={row.mercury_card_id}>
-                      <TableCell className="whitespace-normal px-4 py-3 font-medium text-foreground">
-                        {cardLabel(row)}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-right tabular-nums">
-                        {money(row.total_out)}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                        {row.transaction_count}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                ))}
               </Table>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
+              <Panel>
+                <Text as="p" type="supporting" className="block">
                   Covers all synced Mercury transactions, not only subscription
                   renewals.
-                </p>
-              </CardContent>
+                </Text>
+              </Panel>
             </>
           )}
         </SectionCard>

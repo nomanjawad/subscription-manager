@@ -66,7 +66,7 @@ export function DonutChart({
             r={r}
             fill="none"
             strokeWidth={thickness}
-            className="stroke-muted"
+            className="stroke-track"
           />
           {total > 0 &&
             data.map((d, i) => {
@@ -93,7 +93,7 @@ export function DonutChart({
           y="50%"
           textAnchor="middle"
           dominantBaseline="central"
-          className="fill-foreground text-sm font-semibold"
+          className="fill-primary text-sm font-semibold"
         >
           {formatValue(total)}
         </text>
@@ -106,8 +106,8 @@ export function DonutChart({
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
             />
-            <span className="truncate text-foreground">{d.label}</span>
-            <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">
+            <span className="truncate text-primary">{d.label}</span>
+            <span className="ml-auto shrink-0 tabular-nums text-secondary">
               {formatValue(d.value)}
               {total > 0 ? ` · ${Math.round((d.value / total) * 100)}%` : ""}
             </span>
@@ -134,21 +134,21 @@ export function BarList({
         return (
           <li key={i}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="truncate font-medium text-foreground">
+              <span className="truncate font-medium text-primary">
                 {d.label}
                 {d.sub != null && (
-                  <span className="ml-1.5 font-normal text-muted-foreground">
+                  <span className="ml-1.5 font-normal text-secondary">
                     {d.sub}
                   </span>
                 )}
               </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
+              <span className="shrink-0 tabular-nums text-secondary">
                 {formatValue(d.value)}
               </span>
             </div>
-            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-primary/20">
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-accent-muted">
               <div
-                className="h-full rounded-full bg-primary"
+                className="h-full rounded-full bg-accent-bg"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -180,12 +180,12 @@ export function MonthlyBars({
           >
             <div className="flex w-full flex-1 items-end">
               <div
-                className="w-full rounded-t bg-primary transition-colors hover:bg-primary/80"
+                className="w-full rounded-t bg-accent-bg transition-colors hover:bg-accent"
                 style={{ height: `${pct}%` }}
                 title={`${monthLabel(d.month, true)}: ${formatValue(d.value)}`}
               />
             </div>
-            <span className="w-full truncate text-center text-[10px] text-muted-foreground">
+            <span className="w-full truncate text-center text-xs text-secondary">
               {monthLabel(d.month)}
             </span>
           </div>

@@ -4,13 +4,7 @@
 // to the ?card= search param so the server re-queries spend_by_month for that
 // card (consistent with the app's other DB-side, URL-param filters).
 import { useRouter } from "next/navigation";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Selector } from "@astryxdesign/core/Selector";
 
 const ALL = "all";
 
@@ -27,19 +21,21 @@ export function CardFilter({
     router.push(value === ALL ? "/" : `/?card=${encodeURIComponent(value)}`);
   }
 
+  const options = [
+    { value: ALL, label: "All cards" },
+    ...cards.map((c) => ({ value: c.id, label: c.label })),
+  ];
+
   return (
-    <Select value={selected ?? ALL} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="w-48">
-        <SelectValue placeholder="All cards" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>All cards</SelectItem>
-        {cards.map((c) => (
-          <SelectItem key={c.id} value={c.id}>
-            {c.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Selector
+      label="Filter by card"
+      isLabelHidden
+      size="sm"
+      placeholder="All cards"
+      options={options}
+      value={selected ?? ALL}
+      onChange={onChange}
+      className="w-48"
+    />
   );
 }

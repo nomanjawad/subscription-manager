@@ -1,14 +1,12 @@
 // Thin route — the subscription FORM page. Creates by default; edits an
 // existing subscription when ?edit=<id> is present.
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { getActiveCards } from "@/modules/m01-cards/queries";
 import { SubscriptionForm } from "@/modules/m02-subscriptions/SubscriptionForm";
-import {
-  getSubscriptionOverview,
-  getTags,
-} from "@/modules/m02-subscriptions/queries";
+import { getSubscriptionOverview } from "@/modules/m02-subscriptions/queries";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
 
 export const dynamic = "force-dynamic";
@@ -28,25 +26,24 @@ export default async function NewSubscriptionPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Add subscription
-          </h1>
-          <Button asChild variant="ghost">
-            <Link href="/subscriptions">Back to subscriptions</Link>
-          </Button>
+          <Heading level={1}>Add subscription</Heading>
+          <LinkButton
+            href="/subscriptions"
+            variant="ghost"
+            label="Back to subscriptions"
+          />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <Text type="supporting">
           You haven&apos;t been assigned to a team yet — ask an admin.
-        </p>
+        </Text>
       </div>
     );
   }
 
   const lockedTeamId = isTeamLead ? session.teamId : undefined;
 
-  const [cards, tags, teams, editing] = await Promise.all([
+  const [cards, teams, editing] = await Promise.all([
     getActiveCards(),
-    getTags(lockedTeamId ?? undefined),
     getTeamsPublic(),
     edit ? getSubscriptionOverview(edit) : Promise.resolve(null),
   ]);
@@ -61,16 +58,16 @@ export default async function NewSubscriptionPage({
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Edit subscription
-          </h1>
-          <Button asChild variant="ghost">
-            <Link href="/subscriptions">Back to subscriptions</Link>
-          </Button>
+          <Heading level={1}>Edit subscription</Heading>
+          <LinkButton
+            href="/subscriptions"
+            variant="ghost"
+            label="Back to subscriptions"
+          />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <Text type="supporting">
           This subscription belongs to another team.
-        </p>
+        </Text>
       </div>
     );
   }
@@ -80,18 +77,19 @@ export default async function NewSubscriptionPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <Heading level={1}>
           {isEdit ? `Edit subscription — ${editing.platform}` : "Add subscription"}
-        </h1>
-        <Button asChild variant="ghost">
-          <Link href="/subscriptions">Back to subscriptions</Link>
-        </Button>
+        </Heading>
+        <LinkButton
+          href="/subscriptions"
+          variant="ghost"
+          label="Back to subscriptions"
+        />
       </div>
 
       <SubscriptionForm
         key={editing?.id ?? "create"}
         cards={cards}
-        tags={tags}
         teams={teams}
         lockedTeamId={lockedTeamId}
         lockedTeamName={lockedTeamName}

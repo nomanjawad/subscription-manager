@@ -4,25 +4,21 @@
 // success it closes and refreshes the teams table.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Button } from "@astryxdesign/core/Button";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { Layout, LayoutContent, LayoutFooter } from "@astryxdesign/core/Layout";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { Switch } from "@astryxdesign/core/Switch";
 import { createTeam, type CreateTeamState } from "./actions";
 
 const initialState: CreateTeamState = { ok: false, error: null };
 
 export function CreateTeamDialog() {
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
   const [autoApprove, setAutoApprove] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -34,6 +30,7 @@ export function CreateTeamDialog() {
       const result = await createTeam(initialState, formData);
       if (result.ok) {
         setOpen(false);
+        setName("");
         setAutoApprove(false);
         router.refresh();
       } else {
@@ -43,71 +40,76 @@ export function CreateTeamDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button">New team</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>New team</DialogTitle>
-          <DialogDescription>
-            Create a team to group subscriptions, requests and leads.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form action={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="team-name">Team name</Label>
-            <Input
-              id="team-name"
-              name="name"
-              required
-              maxLength={80}
-              placeholder="e.g. Design"
-            />
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="team-auto-approve">Auto-approve requests</Label>
-              <p className="text-xs text-muted-foreground">
-                New requests from this team skip manual review.
-              </p>
-            </div>
-            <Switch
-              id="team-auto-approve"
-              checked={autoApprove}
-              onCheckedChange={setAutoApprove}
-            />
-            {/* Hidden field carries the switch value into the form post. */}
-            <input
-              type="hidden"
-              name="auto_approve"
-              value={autoApprove ? "on" : "off"}
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={pending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Creating…" : "Create team"}
-            </Button>
-          </DialogFooter>
+    <>
+      <Button
+        type="button"
+        variant="primary"
+        label="New team"
+        onClick={() => setOpen(true)}
+      />
+      <Dialog isOpen={open} onOpenChange={setOpen} purpose="form" width={460}>
+        <form action={onSubmit}>
+          <input type="hidden" name="name" value={name} />
+          <input
+            type="hidden"
+            name="auto_approve"
+            value={autoApprove ? "on" : "off"}
+          />
+          <Layout
+            header={
+              <DialogHeader
+                title="New team"
+                subtitle="Create a team to group subscriptions, requests and leads."
+                onOpenChange={setOpen}
+              />
+            }
+            content={
+              <LayoutContent>
+                <VStack gap={4}>
+                  <TextInput
+                    label="Team name"
+                    value={name}
+                    onChange={setName}
+                    isRequired
+                    placeholder="e.g. Design"
+                  />
+                  <Switch
+                    label="Auto-approve requests"
+                    description="New requests to this team skip manual review."
+                    value={autoApprove}
+                    onChange={(next) => setAutoApprove(next)}
+                    labelSpacing="spread"
+                  />
+                  {error && (
+                    <Text type="supporting" className="text-error">
+                      {error}
+                    </Text>
+                  )}
+                </VStack>
+              </LayoutContent>
+            }
+            footer={
+              <LayoutFooter>
+                <HStack gap={2} hAlign="end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    label="Cancel"
+                    onClick={() => setOpen(false)}
+                    isDisabled={pending}
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    label={pending ? "Creating…" : "Create team"}
+                    isLoading={pending}
+                  />
+                </HStack>
+              </LayoutFooter>
+            }
+          />
         </form>
-      </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

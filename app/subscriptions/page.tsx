@@ -1,7 +1,9 @@
 // Thin route — the subscriptions TABLE page. Filters arrive as search params
 // and are applied in the database by getSubscriptions.
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { SyncCardsButton } from "@/modules/m01-cards/SyncCardsButton";
 import { FilterBar } from "@/modules/m02-subscriptions/FilterBar";
@@ -38,10 +40,12 @@ export default async function SubscriptionsPage({
   if (session?.role === "team_lead" && session.teamId === null) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
-        <p className="text-sm text-muted-foreground">
-          You haven&apos;t been assigned to a team yet — ask an admin.
-        </p>
+        <Heading level={1}>Subscriptions</Heading>
+        <Card padding={5}>
+          <Text type="supporting">
+            You haven&apos;t been assigned to a team yet — ask an admin.
+          </Text>
+        </Card>
       </div>
     );
   }
@@ -71,23 +75,25 @@ export default async function SubscriptionsPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
+      <Heading level={1}>Subscriptions</Heading>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <FilterBar tags={tags} />
         <div className="flex items-center gap-2">
           {session?.role === "admin" && <SyncCardsButton />}
-          <Button asChild>
-            <Link href="/subscriptions/new">Add subscription</Link>
-          </Button>
+          <LinkButton
+            href="/subscriptions/new"
+            variant="primary"
+            label="Add subscription"
+          />
         </div>
       </div>
 
       <SubscriptionTable rows={rows} />
 
-      <p className="text-sm text-muted-foreground">
+      <Text type="supporting">
         {rows.length} subscription{rows.length === 1 ? "" : "s"}
-      </p>
+      </Text>
     </div>
   );
 }

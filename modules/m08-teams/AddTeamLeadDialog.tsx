@@ -2,42 +2,41 @@
 
 // m08-teams — "Add team lead" dialog. Creates a GoTrue account + profile via
 // addTeamLead. The password is temporary; the lead can change it after their
-// first sign-in. Uses useTransition (addTeamLead throws on error) rather than
-// useActionState so we can surface thrown messages inline.
+// first sign-in. Astryx inputs are controlled, so values are mirrored into
+// hidden inputs for the FormData the action reads.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@astryxdesign/core/Button";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { Layout, LayoutContent, LayoutFooter } from "@astryxdesign/core/Layout";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import type { TeamOption } from "@/lib/types";
 import { addTeamLead } from "./actions";
 import { TeamPicker } from "./TeamPicker";
 
 export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
   const [open, setOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   const hasTeams = teams.length > 0;
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function onSubmit(formData: FormData) {
     setError(null);
-    const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       try {
         await addTeamLead(formData);
         setOpen(false);
+        setFullName("");
+        setEmail("");
+        setPassword("");
         router.refresh();
       } catch (e) {
         setError(
@@ -47,91 +46,99 @@ export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
     });
   }
 
-  // When there are no teams the trigger is disabled outright (not just a
-  // wrapped span, which would still capture the click and open the dialog).
   if (!hasTeams) {
     return (
-      <Button type="button" disabled title="Create a team first.">
-        Add team lead
-      </Button>
+      <Button
+        type="button"
+        label="Add team lead"
+        isDisabled
+        tooltip="Create a team first."
+      />
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button">Add team lead</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add team lead</DialogTitle>
-          <DialogDescription>
-            Creates a login for a team lead. The password is temporary — they
-            can change it after signing in.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-full-name">Full name</Label>
-            <Input
-              id="lead-full-name"
-              name="full_name"
-              maxLength={200}
-              placeholder="Jane Doe"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-email">Email</Label>
-            <Input
-              id="lead-email"
-              name="email"
-              type="email"
-              required
-              maxLength={200}
-              placeholder="jane@company.com"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="lead-password">Temporary password</Label>
-            <Input
-              id="lead-password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="At least 8 characters"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Team</Label>
-            <TeamPicker teams={teams} name="team_id" required />
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={pending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add team lead"}
-            </Button>
-          </DialogFooter>
+    <>
+      <Button
+        type="button"
+        variant="primary"
+        label="Add team lead"
+        onClick={() => setOpen(true)}
+      />
+      <Dialog isOpen={open} onOpenChange={setOpen} purpose="form" width={460}>
+        <form action={onSubmit}>
+          <input type="hidden" name="full_name" value={fullName} />
+          <input type="hidden" name="email" value={email} />
+          <input type="hidden" name="password" value={password} />
+          <Layout
+            header={
+              <DialogHeader
+                title="Add team lead"
+                subtitle="Creates a login for a team lead. The password is temporary — they can change it after signing in."
+                onOpenChange={setOpen}
+              />
+            }
+            content={
+              <LayoutContent>
+                <VStack gap={4}>
+                  <TextInput
+                    label="Full name"
+                    value={fullName}
+                    onChange={setFullName}
+                    placeholder="Jane Doe"
+                  />
+                  <TextInput
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    isRequired
+                    placeholder="jane@company.com"
+                  />
+                  <TextInput
+                    label="Temporary password"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    isRequired
+                    description="At least 8 characters."
+                  />
+                  <VStack gap={1}>
+                    <Text type="label" as="label">
+                      Team
+                    </Text>
+                    <TeamPicker teams={teams} name="team_id" required />
+                  </VStack>
+                  {error && (
+                    <Text type="supporting" className="text-error">
+                      {error}
+                    </Text>
+                  )}
+                </VStack>
+              </LayoutContent>
+            }
+            footer={
+              <LayoutFooter>
+                <HStack gap={2} hAlign="end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    label="Cancel"
+                    onClick={() => setOpen(false)}
+                    isDisabled={pending}
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    label={pending ? "Adding…" : "Add team lead"}
+                    isLoading={pending}
+                  />
+                </HStack>
+              </LayoutFooter>
+            }
+          />
         </form>
-      </DialogContent>
-    </Dialog>
+      </Dialog>
+    </>
   );
 }

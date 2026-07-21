@@ -1,4 +1,7 @@
 // Thin route — mounts m05-review.
+import { Card } from "@astryxdesign/core/Card";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
 import { getSessionUser } from "@/lib/supabase/auth";
 import ReviewQueue from "@/modules/m05-review/ReviewQueue";
 
@@ -11,10 +14,12 @@ export default async function ReviewPage() {
   if (session?.role === "team_lead" && session.teamId === null) {
     return (
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Review queue</h1>
-        <p className="text-sm text-muted-foreground">
-          You haven&apos;t been assigned to a team yet — ask an admin.
-        </p>
+        <Heading level={1}>Review queue</Heading>
+        <Card padding={5}>
+          <Text type="supporting">
+            You haven&apos;t been assigned to a team yet — ask an admin.
+          </Text>
+        </Card>
       </div>
     );
   }
@@ -25,7 +30,7 @@ export default async function ReviewPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Review queue</h1>
+      <Heading level={1}>Review queue</Heading>
       <ReviewQueue teamId={teamId} isAdmin={isAdmin} />
     </div>
   );

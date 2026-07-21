@@ -1,20 +1,19 @@
 "use client";
 
 // m02-subscriptions — create/edit form posting straight to the server actions.
-// The card dropdown is m01-cards' public CardPicker component.
+// Astryx inputs are controlled, so each value is mirrored into a hidden input
+// for the FormData submit. The card/team dropdowns are the m01/m08 public
+// pickers (they render their own hidden inputs).
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { HStack } from "@astryxdesign/core/HStack";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { Selector } from "@astryxdesign/core/Selector";
+import { DateInput } from "@astryxdesign/core/DateInput";
 import type {
   CardRow,
   SubscriptionOverviewRow,
@@ -24,22 +23,19 @@ import { CardPicker } from "@/modules/m01-cards/CardPicker";
 import { TeamPicker } from "@/modules/m08-teams/TeamPicker";
 import { createSubscription, updateSubscription } from "./actions";
 
+// Astryx DateInput types its value as a YYYY-MM-DD template literal.
+type IsoDate = `${number}${number}${number}${number}-${number}${number}-${number}${number}`;
+
 interface SubscriptionFormProps {
   cards: CardRow[];
-  /** Existing tags, offered as datalist suggestions for the tag field. */
-  tags?: string[];
   subscription?: SubscriptionOverviewRow;
-  /** Selectable teams (admin only). */
   teams?: TeamOption[];
-  /** When set (team lead), the team is fixed to this id and read-only. */
   lockedTeamId?: string | null;
-  /** Optional display name for the locked team. */
   lockedTeamName?: string | null;
 }
 
 export function SubscriptionForm({
   cards,
-  tags = [],
   subscription,
   teams = [],
   lockedTeamId,
@@ -50,55 +46,73 @@ export function SubscriptionForm({
     ? updateSubscription.bind(null, subscription.id)
     : createSubscription;
 
+  const [platform, setPlatform] = useState(subscription?.platform ?? "");
+  const [product, setProduct] = useState(subscription?.product ?? "");
+  const [orderNumber, setOrderNumber] = useState(
+    subscription?.order_number ?? "",
+  );
+  const [amount, setAmount] = useState(
+    subscription?.amount != null ? String(subscription.amount) : "",
+  );
+  const [currency, setCurrency] = useState(subscription?.currency ?? "USD");
+  const [billingCycle, setBillingCycle] = useState(
+    subscription?.billing_cycle ?? "monthly",
+  );
+  const [nextRenewalDate, setNextRenewalDate] = useState(
+    subscription?.next_renewal_date ?? "",
+  );
+  const [accountEmail, setAccountEmail] = useState(
+    subscription?.account_email ?? "",
+  );
+  const [tag, setTag] = useState(subscription?.tag ?? "");
+  const [notes, setNotes] = useState(subscription?.notes ?? "");
+
   return (
     <form action={action}>
-      <Card>
-        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="platform">
-              Platform <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="platform"
-              name="platform"
-              type="text"
-              required
-              defaultValue={subscription?.platform ?? ""}
+      <Card padding={5}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <TextInput
+              label="Platform"
+              isRequired
+              value={platform}
+              onChange={setPlatform}
               placeholder="e.g. Google Workspace"
             />
+            <input type="hidden" name="platform" value={platform} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="product">Product</Label>
-            <Input
-              id="product"
-              name="product"
-              type="text"
-              defaultValue={subscription?.product ?? ""}
+          <div>
+            <TextInput
+              label="Product"
+              value={product}
+              onChange={setProduct}
               placeholder="e.g. Business Standard"
             />
+            <input type="hidden" name="product" value={product} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="order_number">Order number</Label>
-            <Input
-              id="order_number"
-              name="order_number"
-              type="text"
-              defaultValue={subscription?.order_number ?? ""}
+          <div>
+            <TextInput
+              label="Order number"
+              value={orderNumber}
+              onChange={setOrderNumber}
             />
+            <input type="hidden" name="order_number" value={orderNumber} />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="team_id">Team</Label>
+            <Text type="label" as="label">
+              Team
+            </Text>
             {lockedTeamId ? (
               <>
-                <Input
-                  id="team_id"
-                  type="text"
+                <TextInput
+                  label="Team"
+                  isLabelHidden
                   value={lockedTeamName ?? lockedTeamId}
-                  readOnly
-                  disabled
+                  onChange={() => {}}
+                  isDisabled
                 />
                 <input type="hidden" name="team_id" value={lockedTeamId} />
               </>
@@ -112,64 +126,57 @@ export function SubscriptionForm({
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="amount">
-              Amount <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="amount"
-              name="amount"
-              type="number"
-              required
-              min="0.01"
-              step="0.01"
-              defaultValue={subscription?.amount ?? ""}
+          <div>
+            <TextInput
+              label="Amount"
+              isRequired
+              value={amount}
+              onChange={setAmount}
               placeholder="0.00"
             />
+            <input type="hidden" name="amount" value={amount} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="currency">Currency</Label>
-            <Input
-              id="currency"
-              name="currency"
-              type="text"
-              maxLength={3}
-              defaultValue={subscription?.currency ?? "USD"}
+          <div>
+            <TextInput
+              label="Currency"
+              value={currency}
+              onChange={setCurrency}
             />
+            <input type="hidden" name="currency" value={currency} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="billing_cycle">Billing cycle</Label>
-            <Select
-              name="billing_cycle"
-              defaultValue={subscription?.billing_cycle ?? "monthly"}
-            >
-              <SelectTrigger id="billing_cycle" className="w-full">
-                <SelectValue placeholder="Billing cycle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
+          <div>
+            <Selector
+              label="Billing cycle"
+              options={[
+                { value: "monthly", label: "Monthly" },
+                { value: "yearly", label: "Yearly" },
+              ]}
+              value={billingCycle}
+              onChange={(v) => setBillingCycle(v as "monthly" | "yearly")}
+            />
+            <input type="hidden" name="billing_cycle" value={billingCycle} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="next_renewal_date">
-              Next renewal date <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="next_renewal_date"
+          <div>
+            <DateInput
+              label="Next renewal date"
+              isRequired
+              value={nextRenewalDate ? (nextRenewalDate as IsoDate) : undefined}
+              onChange={(v) => setNextRenewalDate(v ?? "")}
+            />
+            <input
+              type="hidden"
               name="next_renewal_date"
-              type="date"
-              required
-              defaultValue={subscription?.next_renewal_date ?? ""}
+              value={nextRenewalDate}
             />
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="card_id">Card</Label>
+            <Text type="label" as="label">
+              Card
+            </Text>
             <CardPicker
               cards={cards}
               name="card_id"
@@ -177,58 +184,47 @@ export function SubscriptionForm({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="account_email">Account email</Label>
-            <Input
-              id="account_email"
-              name="account_email"
+          <div>
+            <TextInput
+              label="Account email"
               type="email"
-              defaultValue={subscription?.account_email ?? ""}
+              value={accountEmail}
+              onChange={setAccountEmail}
               placeholder="billing@company.com"
             />
+            <input type="hidden" name="account_email" value={accountEmail} />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="tag">Tag</Label>
-            <Input
-              id="tag"
-              name="tag"
-              type="text"
-              maxLength={40}
-              defaultValue={subscription?.tag ?? ""}
+          <div>
+            <TextInput
+              label="Tag"
+              value={tag}
+              onChange={setTag}
               placeholder="e.g. design"
-              list="subscription-tag-options"
+              description="Single tag, lowercased."
             />
-            <datalist id="subscription-tag-options">
-              {tags.map((tag) => (
-                <option key={tag} value={tag} />
-              ))}
-            </datalist>
-            <p className="text-xs text-muted-foreground">
-              Single tag, lowercased — e.g. &quot;design&quot;,
-              &quot;engineering&quot;.
-            </p>
+            <input type="hidden" name="tag" value={tag} />
           </div>
 
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              name="notes"
+          <div className="sm:col-span-2 lg:col-span-3">
+            <TextArea
+              label="Notes"
               rows={2}
-              defaultValue={subscription?.notes ?? ""}
+              value={notes}
+              onChange={setNotes}
             />
+            <input type="hidden" name="notes" value={notes} />
           </div>
-        </CardContent>
+        </div>
 
-        <CardFooter className="gap-2">
-          <Button type="submit">
-            {isEdit ? "Save changes" : "Add subscription"}
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/subscriptions">Cancel</Link>
-          </Button>
-        </CardFooter>
+        <HStack gap={2} paddingBlock={0} className="mt-5">
+          <Button
+            type="submit"
+            variant="primary"
+            label={isEdit ? "Save changes" : "Add subscription"}
+          />
+          <Button as={Link} href="/subscriptions" variant="ghost" label="Cancel" />
+        </HStack>
       </Card>
     </form>
   );

@@ -1,24 +1,19 @@
 // m05-review — the needs-review queue. Async server component.
 // Reads only the review_queue view and the candidate_transactions RPC.
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+// This is a server component, so the confirm/mark-failed forms use native
+// inputs (Astryx inputs are client-controlled) styled with design tokens.
+import { Badge } from "@astryxdesign/core/Badge";
+import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import { Divider } from "@astryxdesign/core/Divider";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
+  TableHeaderCell,
   TableRow,
-} from "@/components/ui/table";
+} from "@astryxdesign/core/Table";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { CandidateTransactionRow, ReviewQueueRow } from "@/lib/types";
 import { confirmMatch, markFailed } from "./actions";
@@ -29,6 +24,9 @@ interface ReviewQueueProps {
   teamId?: string;
   isAdmin: boolean;
 }
+
+const INPUT_CLASS =
+  "h-8 rounded-md border border-default bg-body px-2 text-sm text-primary placeholder:text-secondary";
 
 async function confirmAction(formData: FormData): Promise<void> {
   "use server";
@@ -58,12 +56,10 @@ function formatTimestamp(ts: string | null): string {
   return ts ? ts.slice(0, 10) : "—";
 }
 
-function statusBadgeVariant(
-  status: string,
-): "destructive" | "outline" | "secondary" {
-  if (status === "failed") return "destructive";
-  if (status === "pending") return "outline";
-  return "secondary";
+function statusVariant(status: string): "error" | "warning" | "neutral" {
+  if (status === "failed") return "error";
+  if (status === "pending") return "warning";
+  return "neutral";
 }
 
 export default async function ReviewQueue({
@@ -88,9 +84,11 @@ export default async function ReviewQueue({
             <RunChecksButton />
           </div>
         ) : null}
-        <p className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
-          Nothing needs review
-        </p>
+        <Card padding={10}>
+          <Text as="p" type="supporting" justify="center" className="block">
+            Nothing needs review
+          </Text>
+        </Card>
       </div>
     );
   }
@@ -115,141 +113,121 @@ export default async function ReviewQueue({
         </div>
       ) : null}
       {items.map((item, index) => (
-        <Card key={item.check_id}>
-          <CardHeader className="border-b">
-            <CardTitle>
+        <Card key={item.check_id} padding={0}>
+          <div className="px-5 py-4">
+            <Heading level={3}>
               {item.platform}
               {item.product ? (
-                <span className="font-normal text-muted-foreground">
-                  {" "}
-                  — {item.product}
-                </span>
+                <span className="font-normal text-secondary"> — {item.product}</span>
               ) : null}
-            </CardTitle>
-            <CardDescription>
+            </Heading>
+            <Text type="supporting">
               expected {formatAmount(item.expected_amount, item.currency)} on{" "}
               {item.expected_date}
               {item.card_last4 ? ` · card ••${item.card_last4}` : ""}
-            </CardDescription>
-          </CardHeader>
+            </Text>
+          </div>
+          <Divider />
 
-          <CardContent>
+          <div className="px-5 py-4">
             {candidates[index].length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <Text type="supporting">
                 No candidate transactions found in the window.
-              </p>
+              </Text>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs text-muted-foreground">
-                      Merchant
-                    </TableHead>
-                    <TableHead className="text-right text-xs text-muted-foreground">
-                      Amount
-                    </TableHead>
-                    <TableHead className="text-xs text-muted-foreground">
-                      Status
-                    </TableHead>
-                    <TableHead className="text-xs text-muted-foreground">
-                      Posted
-                    </TableHead>
-                    <TableHead className="text-right text-xs text-muted-foreground">
-                      Confirm
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {candidates[index].map((candidate) => (
-                    <TableRow key={candidate.transaction_id}>
-                      <TableCell className="whitespace-normal py-3">
-                        <span className="font-medium text-foreground">
-                          {candidate.counterparty_name ??
-                            candidate.bank_description ??
-                            "Unknown merchant"}
+              <Table density="compact">
+                <TableRow isHeaderRow>
+                  <TableHeaderCell>Merchant</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Amount</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Posted</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Confirm</TableHeaderCell>
+                </TableRow>
+                {candidates[index].map((candidate) => (
+                  <TableRow key={candidate.transaction_id}>
+                    <TableCell>
+                      <span className="font-medium text-primary">
+                        {candidate.counterparty_name ??
+                          candidate.bank_description ??
+                          "Unknown merchant"}
+                      </span>
+                      {candidate.bank_description &&
+                      candidate.counterparty_name &&
+                      candidate.bank_description !==
+                        candidate.counterparty_name ? (
+                        <span className="ml-1.5 text-secondary">
+                          {candidate.bank_description}
                         </span>
-                        {candidate.bank_description &&
-                        candidate.counterparty_name &&
-                        candidate.bank_description !==
-                          candidate.counterparty_name ? (
-                          <span className="ml-1.5 text-muted-foreground">
-                            {candidate.bank_description}
-                          </span>
-                        ) : null}
-                        {candidate.same_card ? (
-                          <Badge
-                            variant="secondary"
-                            className="ml-1.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                          >
-                            same card
-                          </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="py-3 text-right tabular-nums">
-                        {formatAmount(
-                          Math.abs(Number(candidate.amount)),
-                          item.currency,
-                        )}
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <Badge variant={statusBadgeVariant(candidate.tx_status)}>
-                          {candidate.tx_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-3 text-muted-foreground">
-                        {formatTimestamp(candidate.posted_at)}
-                      </TableCell>
-                      <TableCell className="py-3">
-                        <form
-                          action={confirmAction}
-                          className="flex items-center justify-end gap-2"
-                        >
-                          <input
-                            type="hidden"
-                            name="checkId"
-                            value={item.check_id}
-                          />
-                          <input
-                            type="hidden"
-                            name="transactionId"
-                            value={candidate.transaction_id}
-                          />
-                          <Input
-                            type="text"
-                            name="alias"
-                            defaultValue={candidate.counterparty_name ?? ""}
-                            placeholder="learn descriptor alias (optional)"
-                            className="h-8 w-56"
-                          />
-                          <Button type="submit" size="sm">
-                            Confirm
-                          </Button>
-                        </form>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                      ) : null}
+                      {candidate.same_card ? (
+                        <span className="ml-1.5 inline-block align-middle">
+                          <Badge variant="success" label="same card" />
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatAmount(
+                        Math.abs(Number(candidate.amount)),
+                        item.currency,
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={statusVariant(candidate.tx_status)}
+                        label={candidate.tx_status}
+                      />
+                    </TableCell>
+                    <TableCell className="text-secondary">
+                      {formatTimestamp(candidate.posted_at)}
+                    </TableCell>
+                    <TableCell>
+                      <form
+                        action={confirmAction}
+                        className="flex items-center justify-end gap-2"
+                      >
+                        <input type="hidden" name="checkId" value={item.check_id} />
+                        <input
+                          type="hidden"
+                          name="transactionId"
+                          value={candidate.transaction_id}
+                        />
+                        <input
+                          type="text"
+                          name="alias"
+                          defaultValue={candidate.counterparty_name ?? ""}
+                          placeholder="learn descriptor alias (optional)"
+                          className={`${INPUT_CLASS} w-56`}
+                        />
+                        <Button type="submit" size="sm" label="Confirm" />
+                      </form>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </Table>
             )}
-          </CardContent>
+          </div>
 
-          <CardFooter>
+          <Divider />
+          <div className="px-5 py-4">
             <form
               action={markFailedAction}
               className="flex flex-wrap items-center gap-2"
             >
               <input type="hidden" name="checkId" value={item.check_id} />
-              <Input
+              <input
                 type="text"
                 name="note"
                 placeholder="failure note (optional)"
-                className="h-8 w-64"
+                className={`${INPUT_CLASS} w-64`}
               />
-              <Button type="submit" variant="destructive" size="sm">
-                Mark failed
-              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                size="sm"
+                label="Mark failed"
+              />
             </form>
-          </CardFooter>
+          </div>
         </Card>
       ))}
     </div>

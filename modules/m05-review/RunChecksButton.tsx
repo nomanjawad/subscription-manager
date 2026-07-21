@@ -3,7 +3,8 @@
 // m05-review — manual trigger for the renewal check runner.
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@astryxdesign/core/Button";
+import { Text } from "@astryxdesign/core/Text";
 import { runChecksAction } from "./actions";
 import type { RunRenewalChecksResult } from "./runner";
 
@@ -29,17 +30,25 @@ export default function RunChecksButton() {
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button type="button" onClick={handleClick} disabled={isPending}>
-        {isPending ? "Running…" : "Run renewal checks"}
-      </Button>
+      <Button
+        label={isPending ? "Running…" : "Run renewal checks"}
+        type="button"
+        variant="primary"
+        onClick={handleClick}
+        isLoading={isPending}
+        isDisabled={isPending}
+      />
       {result && !isPending ? (
-        <span className="text-sm text-muted-foreground">
+        <Text type="supporting">
           synced {result.synced} · checks created {result.checksCreated} · renewed{" "}
-          {result.renewed} · failed {result.failed} · needs review {result.needsReview}
-        </span>
+          {result.renewed} · failed {result.failed} · needs review{" "}
+          {result.needsReview}
+        </Text>
       ) : null}
       {error && !isPending ? (
-        <span className="text-sm text-destructive">{error}</span>
+        <Text type="supporting" className="text-error">
+          {error}
+        </Text>
       ) : null}
     </div>
   );

@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "@astryxdesign/core/AppShell";
 import { getSessionUser } from "@/lib/supabase/auth";
-import { signOut } from "@/lib/auth/actions";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { Providers } from "./providers";
+import { AppSideNav, type NavLink } from "./AppSideNav";
 
 export const metadata: Metadata = {
   title: "Subscription Manager",
@@ -23,14 +11,14 @@ export const metadata: Metadata = {
 };
 
 // Shared pages both roles see (team leads get a team-scoped view of each).
-const baseNav = [
+const baseNav: NavLink[] = [
   { href: "/", label: "Dashboard" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/requests", label: "Requests" },
   { href: "/review", label: "Review" },
 ];
 // Admin-only pages.
-const adminNav = [
+const adminNav: NavLink[] = [
   { href: "/teams", label: "Teams" },
   { href: "/analytics", label: "Analytics" },
 ];
@@ -41,57 +29,27 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSessionUser();
-  const nav = session
+  const items = session
     ? session.role === "admin"
       ? [...baseNav, ...adminNav]
       : baseNav
     : [];
 
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      suppressHydrationWarning
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        <header className="border-b bg-card">
-          <div className="mx-auto max-w-6xl px-4 h-14 flex items-center gap-6">
-            <Link href={session ? "/" : "/request"} className="font-semibold tracking-tight">
-              Subscription Manager
-            </Link>
-            {session ? (
-              <nav className="flex gap-4 text-sm text-muted-foreground">
-                {nav.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="hover:text-foreground transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            ) : null}
-            <span className="ml-auto text-xs rounded-full px-2 py-0.5 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-              sandbox
-            </span>
-            {session ? (
-              <div className="flex items-center gap-3">
-                <Badge variant="secondary">
-                  {session.role === "admin" ? "Admin" : "Team lead"}
-                </Badge>
-                <form action={signOut}>
-                  <Button variant="ghost" size="sm" type="submit">
-                    Sign out
-                  </Button>
-                </form>
-              </div>
-            ) : null}
-          </div>
-        </header>
-        <main className="mx-auto max-w-6xl w-full px-4 py-8 flex-1">
-          {children}
-        </main>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>
+          <AppShell
+            contentPadding={0}
+            sideNav={
+              session ? (
+                <AppSideNav role={session.role} items={items} />
+              ) : undefined
+            }
+          >
+            <div className="mx-auto w-full max-w-6xl px-6 py-8">{children}</div>
+          </AppShell>
+        </Providers>
       </body>
     </html>
   );

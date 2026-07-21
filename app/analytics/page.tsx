@@ -2,6 +2,9 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/supabase/auth";
 import AnalyticsPanel from "@/modules/m09-analytics/AnalyticsPanel";
+import { Heading } from "@astryxdesign/core/Heading";
+import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 
 // Reads live DB state (RPCs); render per request rather than at build time.
 export const dynamic = "force-dynamic";
@@ -13,12 +16,12 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+      <VStack gap={1}>
+        <Heading level={1}>Analytics</Heading>
+        <Text type="supporting">
           cross-team &amp; cross-card spend · all teams
-        </p>
-      </div>
+        </Text>
+      </VStack>
       <AnalyticsPanel />
     </div>
   );

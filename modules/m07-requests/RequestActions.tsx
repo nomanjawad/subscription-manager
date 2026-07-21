@@ -5,18 +5,13 @@
 // row moves to its new tab.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogHeader } from "@astryxdesign/core/Dialog";
+import { Layout, LayoutContent, LayoutFooter } from "@astryxdesign/core/Layout";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
+import { TextArea } from "@astryxdesign/core/TextArea";
+import { Button } from "@astryxdesign/core/Button";
+import { Banner } from "@astryxdesign/core/Banner";
 import { approveRequest, rejectRequest } from "./actions";
 
 interface ReviewDialogProps {
@@ -51,80 +46,81 @@ function ReviewDialog({ requestId, mode }: ReviewDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant={isApprove ? "default" : "destructive"}
-          type="button"
-        >
-          {isApprove ? "Approve" : "Reject"}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {isApprove ? "Approve request" : "Reject request"}
-          </DialogTitle>
-          <DialogDescription>
-            {isApprove
-              ? "The request moves to pending purchase."
-              : "The requester's ask will be closed as rejected."}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-1.5">
-          <Label htmlFor={`note-${mode}-${requestId}`}>Note (optional)</Label>
-          <Textarea
-            id={`note-${mode}-${requestId}`}
-            rows={3}
-            maxLength={2000}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={
-              isApprove ? "e.g. Approved for the design team" : "e.g. Duplicate of existing subscription"
-            }
-          />
-        </div>
-
-        {error && (
-          <p className="text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        )}
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setOpen(false)}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant={isApprove ? "default" : "destructive"}
-            onClick={submit}
-            disabled={pending}
-          >
-            {pending
-              ? "Saving…"
-              : isApprove
-                ? "Approve"
-                : "Reject"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button
+        label={isApprove ? "Approve" : "Reject"}
+        size="sm"
+        variant={isApprove ? "primary" : "destructive"}
+        type="button"
+        onClick={() => setOpen(true)}
+      />
+      <Dialog isOpen={open} onOpenChange={setOpen} purpose="form" width={480}>
+        <Layout
+          header={
+            <DialogHeader
+              title={isApprove ? "Approve request" : "Reject request"}
+              subtitle={
+                isApprove
+                  ? "The request moves to pending purchase."
+                  : "The requester's ask will be closed as rejected."
+              }
+              onOpenChange={setOpen}
+            />
+          }
+          content={
+            <LayoutContent>
+              <VStack gap={4}>
+                <TextArea
+                  label="Note (optional)"
+                  rows={3}
+                  maxLength={2000}
+                  value={note}
+                  onChange={setNote}
+                  placeholder={
+                    isApprove
+                      ? "e.g. Approved for the design team"
+                      : "e.g. Duplicate of existing subscription"
+                  }
+                />
+                {error ? (
+                  <Banner status="error" title={error} container="card" />
+                ) : null}
+              </VStack>
+            </LayoutContent>
+          }
+          footer={
+            <LayoutFooter>
+              <HStack gap={2} hAlign="end">
+                <Button
+                  label="Cancel"
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setOpen(false)}
+                  isDisabled={pending}
+                />
+                <Button
+                  label={
+                    pending ? "Saving…" : isApprove ? "Approve" : "Reject"
+                  }
+                  type="button"
+                  variant={isApprove ? "primary" : "destructive"}
+                  onClick={submit}
+                  isLoading={pending}
+                />
+              </HStack>
+            </LayoutFooter>
+          }
+        />
+      </Dialog>
+    </>
   );
 }
 
 export function RequestActions({ requestId }: { requestId: string }) {
   return (
-    <div className="inline-flex items-center gap-2">
+    <HStack gap={2} hAlign="end">
       <ReviewDialog requestId={requestId} mode="approve" />
       <ReviewDialog requestId={requestId} mode="reject" />
-    </div>
+    </HStack>
   );
 }
