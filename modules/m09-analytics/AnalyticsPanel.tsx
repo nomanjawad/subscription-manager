@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DonutChart } from "@/components/charts/Charts";
 import {
   getOverallTotals,
   getSpendByCard,
@@ -107,10 +108,7 @@ export default async function AnalyticsPanel() {
     getSpendByCard(),
   ]);
 
-  const maxTeamSpend = byTeam.reduce(
-    (max, r) => Math.max(max, r.monthly_amount),
-    0,
-  );
+  const totalTeamSpend = byTeam.reduce((sum, r) => sum + r.monthly_amount, 0);
 
   return (
     <div className="space-y-6">
@@ -148,42 +146,25 @@ export default async function AnalyticsPanel() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Spend by team */}
+        {/* Spend by team — which team spent how much (share of monthly cost) */}
         <SectionCard title="Spend by team">
           {byTeam.length === 0 ? (
             <EmptyState>No team spend to report yet.</EmptyState>
           ) : (
-            <CardContent>
-              <ul className="space-y-4">
-                {byTeam.map((row) => {
-                  const pct =
-                    maxTeamSpend > 0
-                      ? Math.max((row.monthly_amount / maxTeamSpend) * 100, 2)
-                      : 0;
-                  return (
-                    <li key={row.team_id ?? "unassigned"}>
-                      <div className="flex items-baseline justify-between gap-3 text-sm">
-                        <span className="truncate font-medium text-foreground">
-                          {row.team_name}
-                          <span className="ml-1.5 font-normal text-muted-foreground">
-                            · {row.subscription_count}{" "}
-                            {row.subscription_count === 1 ? "sub" : "subs"}
-                          </span>
-                        </span>
-                        <span className="shrink-0 tabular-nums text-muted-foreground">
-                          {money(row.monthly_amount)}/mo
-                        </span>
-                      </div>
-                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-primary/20">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+            <CardContent className="space-y-4">
+              <DonutChart
+                data={byTeam.map((row) => ({
+                  label: `${row.team_name} · ${row.subscription_count} ${
+                    row.subscription_count === 1 ? "sub" : "subs"
+                  }`,
+                  value: row.monthly_amount,
+                }))}
+                formatValue={(n) => money(n)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Normalized monthly subscription cost ·{" "}
+                {money(totalTeamSpend)}/mo across all teams.
+              </p>
             </CardContent>
           )}
         </SectionCard>

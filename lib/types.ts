@@ -241,3 +241,9 @@ export interface SpendByCardRow {
   total_out: number;
   transaction_count: number;
 }
+
+export interface SpendByMonthRow {
+  month: string; // YYYY-MM-DD (first of month)
+  total_out: number;
+  transaction_count: number;
+}

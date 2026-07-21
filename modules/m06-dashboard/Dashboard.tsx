@@ -11,11 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { BarList, DonutChart, MonthlyBars } from "@/components/charts/Charts";
 import {
   getDashboardTotals,
+  getSpendByCard,
+  getSpendByMonth,
   getSpendByPlatform,
+  getSpendByTeam,
   getUpcomingRenewals,
 } from "./queries";
+import { CardFilter } from "./CardFilter";
 
 // ── Formatting helpers ────────────────────────────────────────────────────
 
@@ -100,15 +105,18 @@ function StatTile({
 
 function SectionCard({
   title,
+  action,
   children,
 }: {
   title: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <Card size="sm" className="h-full">
-      <CardHeader className="border-b">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
         <CardTitle>{title}</CardTitle>
+        {action}
       </CardHeader>
       {children}
     </Card>
@@ -123,11 +131,108 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** A card's display label: nickname, else name, else a generic fallback. */
+function cardLabel(row: {
+  card_nickname: string | null;
+  card_name: string | null;
+  card_last4: string | null;
+}): string {
+  const name = row.card_nickname || row.card_name || "Card";
+  return row.card_last4 ? `${name} •••• ${row.card_last4}` : name;
+}
+
+// ── Admin spending charts ───────────────────────────────────────────────────
+
+const SPEND_MONTHS = 12;
+
+async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
+  const [byMonth, byTeam, byCard] = await Promise.all([
+    getSpendByMonth(SPEND_MONTHS, cardFilter),
+    getSpendByTeam(),
+    getSpendByCard(),
+  ]);
+
+  const cardOptions = byCard.map((c) => ({
+    id: c.mercury_card_id,
+    label: cardLabel(c),
+  }));
+  const monthHasData = byMonth.some((m) => m.total_out > 0);
+
+  return (
+    <div className="space-y-6">
+      <SectionCard
+        title="Monthly spend"
+        action={<CardFilter cards={cardOptions} selected={cardFilter} />}
+      >
+        <CardContent>
+          {monthHasData ? (
+            <MonthlyBars data={byMonth.map((m) => ({ month: m.month, value: m.total_out }))} formatValue={(n) => money(n)} />
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No card spend recorded in the last {SPEND_MONTHS} months
+              {cardFilter ? " for this card" : ""}.
+            </p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Actual money out of Mercury, across all synced transactions.
+          </p>
+        </CardContent>
+      </SectionCard>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard title="Spend by team">
+          {byTeam.length === 0 ? (
+            <EmptyState>No team spend to report yet.</EmptyState>
+          ) : (
+            <CardContent>
+              <DonutChart
+                data={byTeam.map((t) => ({
+                  label: t.team_name,
+                  value: t.monthly_amount,
+                }))}
+                formatValue={(n) => money(n)}
+              />
+              <p className="mt-4 text-xs text-muted-foreground">
+                Normalized monthly subscription cost per team.
+              </p>
+            </CardContent>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Spend by card">
+          {byCard.length === 0 ? (
+            <EmptyState>No card transactions synced yet.</EmptyState>
+          ) : (
+            <CardContent>
+              <BarList
+                data={byCard.map((c) => ({
+                  label: cardLabel(c),
+                  value: c.total_out,
+                  sub: `· ${c.transaction_count} tx`,
+                }))}
+                formatValue={(n) => money(n)}
+              />
+            </CardContent>
+          )}
+        </SectionCard>
+      </div>
+    </div>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 const RENEWAL_WINDOW_DAYS = 30;
 
-export default async function Dashboard({ teamId }: { teamId?: string }) {
+export default async function Dashboard({
+  teamId,
+  isAdmin = false,
+  cardFilter,
+}: {
+  teamId?: string;
+  isAdmin?: boolean;
+  cardFilter?: string;
+}) {
   const [totals, renewals, spend] = await Promise.all([
     getDashboardTotals(teamId),
     getUpcomingRenewals(RENEWAL_WINDOW_DAYS, teamId),
@@ -172,6 +277,9 @@ export default async function Dashboard({ teamId }: { teamId?: string }) {
           tone={totals && totals.failed_count > 0 ? "red" : "default"}
         />
       </div>
+
+      {/* Admin-only spending charts (monthly trend, by team, by card). */}
+      {isAdmin && <SpendingCharts cardFilter={cardFilter} />}
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Upcoming renewals */}

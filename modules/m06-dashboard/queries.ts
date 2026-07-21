@@ -1,10 +1,14 @@
 // m06-dashboard data access — RPC calls only (no table reads, no JS aggregation).
 // Contract: dashboard_totals / upcoming_renewals / spend_by_platform in
-// supabase/migrations/20260716075435_initial_schema.sql.
+// supabase/migrations/20260716075435_initial_schema.sql; spend_by_team /
+// spend_by_card / spend_by_month for the admin charts.
 import { createServiceClient } from "@/lib/supabase/server";
 import type {
   DashboardTotalsRow,
+  SpendByCardRow,
+  SpendByMonthRow,
   SpendByPlatformRow,
+  SpendByTeamRow,
   UpcomingRenewalRow,
 } from "@/lib/types";
 
@@ -76,6 +80,74 @@ export async function getSpendByPlatform(
     return (data ?? []) as SpendByPlatformRow[];
   } catch (err) {
     console.error("[m06-dashboard] spend_by_platform unavailable:", err);
+    return [];
+  }
+}
+
+// ── Admin charts (all-teams) ────────────────────────────────────────────────
+
+/** Monthly spend per team, normalized (includes an "Unassigned" row). */
+export async function getSpendByTeam(): Promise<SpendByTeamRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_team");
+    if (error) {
+      console.error("[m06-dashboard] spend_by_team failed:", error.message);
+      return [];
+    }
+    return ((data ?? []) as SpendByTeamRow[]).map((r) => ({
+      ...r,
+      monthly_amount: Number(r.monthly_amount),
+      subscription_count: Number(r.subscription_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_team unavailable:", err);
+    return [];
+  }
+}
+
+/** Total money-out per Mercury card across all synced transactions. */
+export async function getSpendByCard(): Promise<SpendByCardRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_card");
+    if (error) {
+      console.error("[m06-dashboard] spend_by_card failed:", error.message);
+      return [];
+    }
+    return ((data ?? []) as SpendByCardRow[]).map((r) => ({
+      ...r,
+      total_out: Number(r.total_out),
+      transaction_count: Number(r.transaction_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_card unavailable:", err);
+    return [];
+  }
+}
+
+/** Actual money-out bucketed by calendar month; optionally one card only. */
+export async function getSpendByMonth(
+  months = 12,
+  cardId?: string,
+): Promise<SpendByMonthRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_month", {
+      p_months: months,
+      ...(cardId ? { p_card_id: cardId } : {}),
+    });
+    if (error) {
+      console.error("[m06-dashboard] spend_by_month failed:", error.message);
+      return [];
+    }
+    return ((data ?? []) as SpendByMonthRow[]).map((r) => ({
+      ...r,
+      total_out: Number(r.total_out),
+      transaction_count: Number(r.transaction_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_month unavailable:", err);
     return [];
   }
 }

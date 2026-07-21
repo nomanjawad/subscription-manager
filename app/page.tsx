@@ -8,10 +8,16 @@ import { Card, CardContent } from "@/components/ui/card";
 // like /review, instead of baking build-time data into a static page.
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ card?: string }>;
+}) {
   // Middleware guarantees an authenticated, role-resolved session on this route.
   const session = await getSessionUser();
   const isTeamLead = session?.role === "team_lead";
+  const { card } = await searchParams;
+  const cardFilter = typeof card === "string" && card !== "" ? card : undefined;
 
   // Team lead with no team assigned — nothing to aggregate yet.
   if (isTeamLead && !session?.teamId) {
@@ -47,7 +53,7 @@ export default async function Home() {
       {isTeamLead ? (
         <Dashboard teamId={session!.teamId!} />
       ) : (
-        <Dashboard />
+        <Dashboard isAdmin cardFilter={cardFilter} />
       )}
     </div>
   );
