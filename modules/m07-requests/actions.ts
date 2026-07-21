@@ -9,8 +9,9 @@
 // request into a real subscriptions row.
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getSessionUser, type SessionUser } from "@/lib/supabase/auth";
+import { getSessionUser } from "@/lib/supabase/auth";
 import type { BillingCycle, RequestStatus } from "@/lib/types";
+import { assertCanActOnRequestTeam } from "./authz";
 
 export interface SubmitState {
   ok: boolean;
@@ -110,40 +111,70 @@ export async function submitRequest(
 
   const supabase = createServiceClient();
 
-  // Team routing. A chosen team must exist; if the system has any teams at
-  // all, choosing one is required (a fresh install with no teams still works).
+  // ── Team routing ──────────────────────────────────────────────────────────
+  // If the requester's email matches a registered member, their assignment
+  // (member → team lead → team) is AUTHORITATIVE and overrides any team they
+  // picked on the form. Unknown emails fall back to the team they chose (a
+  // blank choice is allowed and lands unassigned for an admin to triage).
   let teamId: string | null = null;
   let autoApprove = false;
 
-  const teamRaw = text(formData, "team_id");
-  if (teamRaw !== null) {
-    if (!UUID_RE.test(teamRaw)) {
-      return fail("Please choose a valid team.");
+  const { data: member, error: memberError } = await supabase
+    .from("members")
+    .select("lead_id")
+    .eq("email", requesterEmail.toLowerCase())
+    .maybeSingle();
+  if (memberError) {
+    // Never leak DB internals to the public form.
+    return fail("Could not submit your request right now. Please try again.");
+  }
+
+  if (member?.lead_id) {
+    const { data: lead, error: leadError } = await supabase
+      .from("profiles")
+      .select("team_id")
+      .eq("id", member.lead_id)
+      .maybeSingle();
+    if (leadError) {
+      return fail("Could not submit your request right now. Please try again.");
     }
+    teamId = lead?.team_id ?? null;
+  }
+
+  if (teamId === null) {
+    // Not a routable member — use the team picked on the form, if any.
+    const teamRaw = text(formData, "team_id");
+    if (teamRaw !== null) {
+      if (!UUID_RE.test(teamRaw)) {
+        return fail("Please choose a valid team.");
+      }
+      const { data: team, error: teamError } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("id", teamRaw)
+        .maybeSingle();
+      if (teamError) {
+        return fail("Could not submit your request right now. Please try again.");
+      }
+      if (!team) {
+        return fail("Please choose a valid team.");
+      }
+      teamId = team.id;
+    }
+  }
+
+  // Resolve the routed team's auto-approve policy once (membership or manual);
+  // a missing team simply means no auto-approve.
+  if (teamId !== null) {
     const { data: team, error: teamError } = await supabase
       .from("teams")
-      .select("id, auto_approve")
-      .eq("id", teamRaw)
+      .select("auto_approve")
+      .eq("id", teamId)
       .maybeSingle();
     if (teamError) {
-      // Never leak DB internals to the public form.
       return fail("Could not submit your request right now. Please try again.");
     }
-    if (!team) {
-      return fail("Please choose a valid team.");
-    }
-    teamId = team.id;
-    autoApprove = team.auto_approve === true;
-  } else {
-    const { count, error: countError } = await supabase
-      .from("teams")
-      .select("id", { count: "exact", head: true });
-    if (countError) {
-      return fail("Could not submit your request right now. Please try again.");
-    }
-    if ((count ?? 0) > 0) {
-      return fail("Please choose a team.");
-    }
+    autoApprove = team?.auto_approve === true;
   }
 
   const { error } = await supabase.from("subscription_requests").insert({
@@ -172,22 +203,6 @@ export async function submitRequest(
   return { ok: true, error: null };
 }
 
-// ── Authorization ────────────────────────────────────────────────────────
-
-/**
- * Guards a review/purchase action against the acting user's team scope.
- * Admins may act on any request; a team lead may only act on requests routed
- * to their own team.
- */
-function authorizeForRequestTeam(
-  session: SessionUser,
-  requestTeamId: string | null,
-): void {
-  if (session.role === "admin") return;
-  if (session.teamId && session.teamId === requestTeamId) return;
-  throw new Error("You can only act on your own team's requests.");
-}
-
 // ── Admin: review (approve / reject) ─────────────────────────────────────
 
 async function reviewRequest(
@@ -213,7 +228,7 @@ async function reviewRequest(
   if (!existing) {
     throw new Error("Request not found.");
   }
-  authorizeForRequestTeam(session, existing.team_id);
+  assertCanActOnRequestTeam(session, existing.team_id);
 
   const { data, error } = await supabase
     .from("subscription_requests")
@@ -274,7 +289,7 @@ export async function purchaseRequest(
   if (!request) {
     throw new Error("Request not found.");
   }
-  authorizeForRequestTeam(session, request.team_id);
+  assertCanActOnRequestTeam(session, request.team_id);
   if (request.status !== "approved") {
     throw new Error("Only approved requests can be marked purchased.");
   }

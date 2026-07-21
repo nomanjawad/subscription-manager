@@ -123,14 +123,18 @@ function RequestFormInner({
               <div className="sm:col-span-2">
                 <VStack gap={1}>
                   <Text type="label" as="label">
-                    Team / category *
+                    Team / category
                   </Text>
                   <TeamPicker
                     teams={teams}
                     name="team_id"
-                    required
                     placeholder="Choose a team"
                   />
+                  <Text type="supporting">
+                    If your email is registered with us, we&apos;ll route this to
+                    your team automatically — otherwise pick the team it&apos;s
+                    for.
+                  </Text>
                 </VStack>
               </div>
             ) : (

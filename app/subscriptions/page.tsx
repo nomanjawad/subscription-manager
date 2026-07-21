@@ -5,7 +5,6 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
-import { SyncCardsButton } from "@/modules/m01-cards/SyncCardsButton";
 import { FilterBar } from "@/modules/m02-subscriptions/FilterBar";
 import { SubscriptionTable } from "@/modules/m02-subscriptions/SubscriptionTable";
 import {
@@ -80,7 +79,6 @@ export default async function SubscriptionsPage({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <FilterBar tags={tags} />
         <div className="flex items-center gap-2">
-          {session?.role === "admin" && <SyncCardsButton />}
           <LinkButton
             href="/subscriptions/new"
             variant="primary"

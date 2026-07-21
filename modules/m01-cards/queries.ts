@@ -16,3 +16,17 @@ export async function getActiveCards(): Promise<CardRow[]> {
   }
   return (data ?? []) as CardRow[];
 }
+
+/** Every synced card regardless of status — feeds the admin Cards page. */
+export async function getAllCards(): Promise<CardRow[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("cards")
+    .select("*")
+    .order("last4", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load cards: ${error.message}`);
+  }
+  return (data ?? []) as CardRow[];
+}

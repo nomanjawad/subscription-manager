@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PAGES = ["/login", "/subscription-request"];
 const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
 // Admin-only pages: team leads are redirected to their dashboard.
-const ADMIN_ONLY_PREFIXES = ["/teams", "/users", "/analytics"];
+const ADMIN_ONLY_PREFIXES = ["/teams", "/users", "/cards", "/analytics"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/")))
