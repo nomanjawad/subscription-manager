@@ -10,7 +10,9 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -310,12 +312,15 @@ export default async function Dashboard({
               </EmptyState>
             ) : (
               <Table density="compact">
-                <TableRow isHeaderRow>
-                  <TableHeaderCell>Subscription</TableHeaderCell>
-                  <TableHeaderCell className="text-right">Amount</TableHeaderCell>
-                  <TableHeaderCell>Renews</TableHeaderCell>
-                  <TableHeaderCell>Card</TableHeaderCell>
-                </TableRow>
+                <TableHeader>
+                  <TableRow isHeaderRow>
+                    <TableHeaderCell>Subscription</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Amount</TableHeaderCell>
+                    <TableHeaderCell>Renews</TableHeaderCell>
+                    <TableHeaderCell>Card</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {renewals.map((r) => {
                   const overdue = r.next_renewal_date < today;
                   const isToday = r.next_renewal_date === today;
@@ -363,6 +368,7 @@ export default async function Dashboard({
                     </TableRow>
                   );
                 })}
+                </TableBody>
               </Table>
             )}
           </SectionCard>

@@ -10,7 +10,9 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -136,13 +138,16 @@ export default async function ReviewQueue({
               </Text>
             ) : (
               <Table density="compact">
-                <TableRow isHeaderRow>
-                  <TableHeaderCell>Merchant</TableHeaderCell>
-                  <TableHeaderCell className="text-right">Amount</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                  <TableHeaderCell>Posted</TableHeaderCell>
-                  <TableHeaderCell className="text-right">Confirm</TableHeaderCell>
-                </TableRow>
+                <TableHeader>
+                  <TableRow isHeaderRow>
+                    <TableHeaderCell>Merchant</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Amount</TableHeaderCell>
+                    <TableHeaderCell>Status</TableHeaderCell>
+                    <TableHeaderCell>Posted</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Confirm</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {candidates[index].map((candidate) => (
                   <TableRow key={candidate.transaction_id}>
                     <TableCell>
@@ -203,6 +208,7 @@ export default async function ReviewQueue({
                     </TableCell>
                   </TableRow>
                 ))}
+                </TableBody>
               </Table>
             )}
           </div>

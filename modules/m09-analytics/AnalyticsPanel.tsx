@@ -8,7 +8,9 @@ import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -192,15 +194,18 @@ export default async function AnalyticsPanel() {
           ) : (
             <>
               <Table density="compact">
-                <TableRow isHeaderRow>
-                  <TableHeaderCell>Card</TableHeaderCell>
-                  <TableHeaderCell className="text-right">
-                    Total spent
-                  </TableHeaderCell>
-                  <TableHeaderCell className="text-right">
-                    Transactions
-                  </TableHeaderCell>
-                </TableRow>
+                <TableHeader>
+                  <TableRow isHeaderRow>
+                    <TableHeaderCell>Card</TableHeaderCell>
+                    <TableHeaderCell className="text-right">
+                      Total spent
+                    </TableHeaderCell>
+                    <TableHeaderCell className="text-right">
+                      Transactions
+                    </TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                 {byCard.map((row) => (
                   <TableRow key={row.mercury_card_id}>
                     <TableCell className="font-medium text-primary">
@@ -214,6 +219,7 @@ export default async function AnalyticsPanel() {
                     </TableCell>
                   </TableRow>
                 ))}
+                </TableBody>
               </Table>
               <Panel>
                 <Text as="p" type="supporting" className="block">

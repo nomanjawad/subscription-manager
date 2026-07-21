@@ -8,7 +8,9 @@ import { LinkButton } from "@/components/LinkButton";
 import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -115,16 +117,19 @@ function RequestedTable({
   return (
     <Card padding={0} className="overflow-hidden">
       <Table density="compact">
-        <TableRow isHeaderRow>
-          <TableHeaderCell>Requester</TableHeaderCell>
-          <TableHeaderCell>Team</TableHeaderCell>
-          <TableHeaderCell>Platform</TableHeaderCell>
-          <TableHeaderCell>Est. amount</TableHeaderCell>
-          <TableHeaderCell>Cycle</TableHeaderCell>
-          <TableHeaderCell>Reason</TableHeaderCell>
-          <TableHeaderCell>Submitted</TableHeaderCell>
-          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-        </TableRow>
+        <TableHeader>
+          <TableRow isHeaderRow>
+            <TableHeaderCell>Requester</TableHeaderCell>
+            <TableHeaderCell>Team</TableHeaderCell>
+            <TableHeaderCell>Platform</TableHeaderCell>
+            <TableHeaderCell>Est. amount</TableHeaderCell>
+            <TableHeaderCell>Cycle</TableHeaderCell>
+            <TableHeaderCell>Reason</TableHeaderCell>
+            <TableHeaderCell>Submitted</TableHeaderCell>
+            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
@@ -151,6 +156,7 @@ function RequestedTable({
             </TableCell>
           </TableRow>
         ))}
+        </TableBody>
       </Table>
     </Card>
   );
@@ -170,16 +176,19 @@ async function PendingTable({
   return (
     <Card padding={0} className="overflow-hidden">
       <Table density="compact">
-        <TableRow isHeaderRow>
-          <TableHeaderCell>Requester</TableHeaderCell>
-          <TableHeaderCell>Team</TableHeaderCell>
-          <TableHeaderCell>Platform</TableHeaderCell>
-          <TableHeaderCell>Est. amount</TableHeaderCell>
-          <TableHeaderCell>Cycle</TableHeaderCell>
-          <TableHeaderCell>Reason</TableHeaderCell>
-          <TableHeaderCell>Approved</TableHeaderCell>
-          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-        </TableRow>
+        <TableHeader>
+          <TableRow isHeaderRow>
+            <TableHeaderCell>Requester</TableHeaderCell>
+            <TableHeaderCell>Team</TableHeaderCell>
+            <TableHeaderCell>Platform</TableHeaderCell>
+            <TableHeaderCell>Est. amount</TableHeaderCell>
+            <TableHeaderCell>Cycle</TableHeaderCell>
+            <TableHeaderCell>Reason</TableHeaderCell>
+            <TableHeaderCell>Approved</TableHeaderCell>
+            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
@@ -206,6 +215,7 @@ async function PendingTable({
             </TableCell>
           </TableRow>
         ))}
+        </TableBody>
       </Table>
     </Card>
   );
@@ -224,15 +234,18 @@ function HistoryTable({
   return (
     <Card padding={0} className="overflow-hidden">
       <Table density="compact">
-        <TableRow isHeaderRow>
-          <TableHeaderCell>Requester</TableHeaderCell>
-          <TableHeaderCell>Team</TableHeaderCell>
-          <TableHeaderCell>Platform</TableHeaderCell>
-          <TableHeaderCell>Status</TableHeaderCell>
-          <TableHeaderCell>Review note</TableHeaderCell>
-          <TableHeaderCell>Reviewed</TableHeaderCell>
-          <TableHeaderCell>Submitted</TableHeaderCell>
-        </TableRow>
+        <TableHeader>
+          <TableRow isHeaderRow>
+            <TableHeaderCell>Requester</TableHeaderCell>
+            <TableHeaderCell>Team</TableHeaderCell>
+            <TableHeaderCell>Platform</TableHeaderCell>
+            <TableHeaderCell>Status</TableHeaderCell>
+            <TableHeaderCell>Review note</TableHeaderCell>
+            <TableHeaderCell>Reviewed</TableHeaderCell>
+            <TableHeaderCell>Submitted</TableHeaderCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
@@ -258,6 +271,7 @@ function HistoryTable({
             </TableCell>
           </TableRow>
         ))}
+        </TableBody>
       </Table>
     </Card>
   );

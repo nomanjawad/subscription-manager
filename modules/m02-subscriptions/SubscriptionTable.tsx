@@ -7,7 +7,9 @@ import { LinkButton } from "@/components/LinkButton";
 import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -72,17 +74,20 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
   return (
     <Card padding={0} className="overflow-hidden">
       <Table density="compact">
-        <TableRow isHeaderRow>
-          <TableHeaderCell>Platform</TableHeaderCell>
-          <TableHeaderCell>Team</TableHeaderCell>
-          <TableHeaderCell>Tag</TableHeaderCell>
-          <TableHeaderCell>Amount</TableHeaderCell>
-          <TableHeaderCell>Next renewal</TableHeaderCell>
-          <TableHeaderCell>Card</TableHeaderCell>
-          <TableHeaderCell>Status</TableHeaderCell>
-          <TableHeaderCell>Last check</TableHeaderCell>
-          <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-        </TableRow>
+        <TableHeader>
+          <TableRow isHeaderRow>
+            <TableHeaderCell>Platform</TableHeaderCell>
+            <TableHeaderCell>Team</TableHeaderCell>
+            <TableHeaderCell>Tag</TableHeaderCell>
+            <TableHeaderCell>Amount</TableHeaderCell>
+            <TableHeaderCell>Next renewal</TableHeaderCell>
+            <TableHeaderCell>Card</TableHeaderCell>
+            <TableHeaderCell>Status</TableHeaderCell>
+            <TableHeaderCell>Last check</TableHeaderCell>
+            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
         {rows.map((row) => (
           <TableRow key={row.id}>
             <TableCell>
@@ -151,6 +156,7 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
             </TableCell>
           </TableRow>
         ))}
+        </TableBody>
       </Table>
     </Card>
   );

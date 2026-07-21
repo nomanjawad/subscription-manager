@@ -8,7 +8,9 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import {
   Table,
+  TableBody,
   TableCell,
+  TableHeader,
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
@@ -80,15 +82,18 @@ export async function TeamsPanel() {
           </div>
         ) : (
           <Table density="compact">
-            <TableRow isHeaderRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Auto-approve</TableHeaderCell>
-              <TableHeaderCell className="text-right">Leads</TableHeaderCell>
-              <TableHeaderCell className="text-right">Active subs</TableHeaderCell>
-              <TableHeaderCell className="text-right">Monthly spend</TableHeaderCell>
-              <TableHeaderCell className="text-right">Open requests</TableHeaderCell>
-              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-            </TableRow>
+            <TableHeader>
+              <TableRow isHeaderRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Auto-approve</TableHeaderCell>
+                <TableHeaderCell className="text-right">Leads</TableHeaderCell>
+                <TableHeaderCell className="text-right">Active subs</TableHeaderCell>
+                <TableHeaderCell className="text-right">Monthly spend</TableHeaderCell>
+                <TableHeaderCell className="text-right">Open requests</TableHeaderCell>
+                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {overview.map((team) => (
               <TableRow key={team.team_id}>
                 <TableCell className="font-medium text-primary">
@@ -118,6 +123,7 @@ export async function TeamsPanel() {
                 </TableCell>
               </TableRow>
             ))}
+            </TableBody>
           </Table>
         )}
       </Card>
@@ -140,12 +146,15 @@ export async function TeamsPanel() {
           </div>
         ) : (
           <Table density="compact">
-            <TableRow isHeaderRow>
-              <TableHeaderCell>Name</TableHeaderCell>
-              <TableHeaderCell>Email</TableHeaderCell>
-              <TableHeaderCell>Team</TableHeaderCell>
-              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-            </TableRow>
+            <TableHeader>
+              <TableRow isHeaderRow>
+                <TableHeaderCell>Name</TableHeaderCell>
+                <TableHeaderCell>Email</TableHeaderCell>
+                <TableHeaderCell>Team</TableHeaderCell>
+                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
             {leads.map((lead) => (
               <TableRow key={lead.id}>
                 <TableCell className="font-medium text-primary">
@@ -164,6 +173,7 @@ export async function TeamsPanel() {
                 </TableCell>
               </TableRow>
             ))}
+            </TableBody>
           </Table>
         )}
       </Card>

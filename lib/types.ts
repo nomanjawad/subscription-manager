@@ -41,6 +41,37 @@ export interface TeamLeadRow {
   created_at: string;
 }
 
+/**
+ * A "member": a non-login user who can only request subscriptions. Assigned to
+ * a team lead (whose team then handles their requests). No auth account.
+ */
+export interface MemberRow {
+  id: string;
+  full_name: string | null;
+  email: string;
+  lead_id: string | null;
+  created_at: string;
+}
+
+/** A member joined with their assigned lead + that lead's team (admin UI). */
+export interface MemberDirectoryRow {
+  id: string;
+  full_name: string | null;
+  email: string;
+  lead_id: string | null;
+  lead_name: string | null;
+  lead_email: string | null;
+  team_id: string | null;
+  team_name: string | null;
+  created_at: string;
+}
+
+/** A team lead as a pickable option (admin "assign to lead" controls). */
+export interface LeadOption {
+  id: string;
+  label: string;
+}
+
 export interface CardRow {
   id: string;
   mercury_card_id: string;
