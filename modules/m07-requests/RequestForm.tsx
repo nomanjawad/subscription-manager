@@ -1,6 +1,6 @@
 "use client";
 
-// m07-requests — public request form (/request). Posts to submitRequest via
+// m07-requests — public request form (/subscription-request). Posts to submitRequest via
 // useActionState; on success it swaps to a thank-you state with a
 // "Submit another" button that remounts the form (key bump resets everything).
 //

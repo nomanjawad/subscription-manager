@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Public surface: login, the open request form, cron (Bearer-secret) and dev
 // seed (disabled in prod builds). Everything else — including /api/sync/* and
 // /api/mercury/* — requires an admin or team-lead session.
-const PUBLIC_PAGES = ["/login", "/request"];
+const PUBLIC_PAGES = ["/login", "/subscription-request"];
 const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
 // Admin-only pages: team leads are redirected to their dashboard.
 const ADMIN_ONLY_PREFIXES = ["/teams", "/users", "/analytics"];

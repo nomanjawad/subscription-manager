@@ -3,7 +3,7 @@
 // m07-requests — request lifecycle server actions.
 // requested → approved (pending purchase) → purchased
 //           → rejected
-// submitRequest handles PUBLIC input (the /request form): everything is
+// submitRequest handles PUBLIC input (the /subscription-request form): everything is
 // trimmed, length-capped and validated; error messages never echo raw input.
 // purchaseRequest is the sanctioned orchestrator that converts an approved
 // request into a real subscriptions row.
