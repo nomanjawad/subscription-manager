@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@astryxdesign/core/AppShell";
 import { getSessionUser } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
+import type { UserRole } from "@/lib/types";
 import { Providers } from "./providers";
 import { AppSideNav, type NavLink } from "./AppSideNav";
 
@@ -10,32 +12,41 @@ export const metadata: Metadata = {
   description: "In-house subscription tracking verified against Mercury",
 };
 
-// Shared pages admins + team leads see (team leads get a team-scoped view).
-const baseNav: NavLink[] = [
-  { href: "/", label: "Dashboard" },
-  { href: "/subscriptions", label: "Subscriptions" },
-  { href: "/requests", label: "Requests" },
-  { href: "/cancellations", label: "Cancellations" },
-  { href: "/review", label: "Review" },
-];
-// The purchasing queue — admins and buyers.
-const buyNav: NavLink = { href: "/buy", label: "To buy" };
-// Admin-only pages.
-const adminNav: NavLink[] = [
-  { href: "/teams", label: "Teams" },
-  { href: "/users", label: "Users" },
-  { href: "/buyers", label: "Buyers" },
-  { href: "/cards", label: "Cards" },
-  { href: "/capture", label: "Capture" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/settings", label: "Settings" },
-];
-// A buyer's whole world: their to-buy queue and the subscriptions they bought.
-const buyerNav: NavLink[] = [
-  buyNav,
-  { href: "/cancellations", label: "Cancellations" },
-  { href: "/subscriptions", label: "My purchases" },
-];
+interface NavSection {
+  section: string; // relative to the role prefix; "" is the role's home
+  label: string;
+}
+
+// Sections per role. Keep in sync with lib/roles.ts ALLOWED_SECTIONS.
+const SECTIONS: Record<UserRole, NavSection[]> = {
+  admin: [
+    { section: "", label: "Dashboard" },
+    { section: "subscriptions", label: "Subscriptions" },
+    { section: "requests", label: "Requests" },
+    { section: "cancellations", label: "Cancellations" },
+    { section: "review", label: "Review" },
+    { section: "buy", label: "To buy" },
+    { section: "teams", label: "Teams" },
+    { section: "users", label: "Users" },
+    { section: "buyers", label: "Buyers" },
+    { section: "cards", label: "Cards" },
+    { section: "capture", label: "Capture" },
+    { section: "analytics", label: "Analytics" },
+    { section: "settings", label: "Settings" },
+  ],
+  team_lead: [
+    { section: "", label: "Dashboard" },
+    { section: "subscriptions", label: "Subscriptions" },
+    { section: "requests", label: "Requests" },
+    { section: "cancellations", label: "Cancellations" },
+    { section: "review", label: "Review" },
+  ],
+  buyer: [
+    { section: "", label: "To buy" },
+    { section: "subscriptions", label: "My purchases" },
+    { section: "cancellations", label: "Cancellations" },
+  ],
+};
 
 export default async function RootLayout({
   children,
@@ -43,13 +54,12 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSessionUser();
-  const items = !session
-    ? []
-    : session.role === "admin"
-      ? [...baseNav, buyNav, ...adminNav]
-      : session.role === "buyer"
-        ? buyerNav
-        : baseNav; // team_lead
+  const items: NavLink[] = session
+    ? SECTIONS[session.role].map((s) => ({
+        href: rolePath(session.role, s.section),
+        label: s.label,
+      }))
+    : [];
 
   return (
     <html lang="en" suppressHydrationWarning>

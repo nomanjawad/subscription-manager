@@ -7,6 +7,7 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { LinkButton } from "@/components/LinkButton";
 import { requireSession } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
 import { CancellationsPanel } from "@/modules/m13-cancellations/CancellationsPanel";
 import { getCancellations } from "@/modules/m13-cancellations/queries";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
@@ -25,6 +26,7 @@ export default async function CancellationsPage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const basePath = rolePath(session.role, "cancellations");
 
   // Team lead with no team can't see anything scoped.
   if (session.role === "team_lead" && session.teamId === null) {
@@ -75,7 +77,7 @@ export default async function CancellationsPage({
       {isAdmin && teams.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
           <LinkButton
-            href="/cancellations"
+            href={basePath}
             label="All teams"
             variant={adminTeamFilter ? "ghost" : "secondary"}
             size="sm"
@@ -83,7 +85,7 @@ export default async function CancellationsPage({
           {teams.map((t) => (
             <LinkButton
               key={t.id}
-              href={`/cancellations?team=${t.id}`}
+              href={`${basePath}?team=${t.id}`}
               label={t.name}
               variant={adminTeamFilter === t.id ? "secondary" : "ghost"}
               size="sm"

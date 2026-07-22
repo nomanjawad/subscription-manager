@@ -4,7 +4,7 @@
 // On success it navigates to /capture?card=&period= so the server re-renders
 // the charge list for that selection.
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
 import { Card } from "@astryxdesign/core/Card";
@@ -27,6 +27,7 @@ export function CaptureControls({
   currentPeriod: CapturePeriod;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [cardId, setCardId] = useState(currentCardId ?? cards[0]?.value ?? "");
   const [period, setPeriod] = useState<string>(currentPeriod);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function CaptureControls({
     start(async () => {
       try {
         await captureCardStatement(cardId, period as CapturePeriod);
-        router.push(`/capture?card=${cardId}&period=${period}`);
+        router.push(`${pathname}?card=${cardId}&period=${period}`);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't capture the statement.");

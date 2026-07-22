@@ -11,6 +11,7 @@ import {
 } from "@astryxdesign/core/SideNav";
 import { Button } from "@astryxdesign/core/Button";
 import type { UserRole } from "@/lib/types";
+import { homeFor } from "@/lib/roles";
 import { signOut } from "@/lib/auth/actions";
 
 export interface NavLink {
@@ -33,8 +34,7 @@ export function AppSideNav({
   items: NavLink[];
 }) {
   const pathname = usePathname();
-  // Buyers live in the /buy queue — that's their home, not the dashboard.
-  const home = role === "buyer" ? "/buy" : "/";
+  const home = homeFor(role);
   return (
     <SideNav
       header={

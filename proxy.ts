@@ -1,9 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  PREFIX_FOR_ROLE,
+  homeFor,
+  isSectionAllowed,
+} from "@/lib/roles";
 
-// Public surface: login, the open request form, cron (Bearer-secret) and dev
-// seed (disabled in prod builds). Everything else — including /api/sync/* and
-// /api/mercury/* — requires an admin or team-lead session.
+// Public surface: login, the open request/cancellation forms, cron
+// (Bearer-secret) and dev seed. Every authenticated page lives under a role
+// prefix (/admin, /teamlead, /buyer); this proxy keeps each role in its own
+// URL space. Not the only guard — pages/actions re-check — just the routing.
 type Role = "admin" | "team_lead" | "buyer";
 
 const PUBLIC_PAGES = [
@@ -12,59 +18,15 @@ const PUBLIC_PAGES = [
   "/cancellation-request",
 ];
 const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
-// Admin-only pages: everyone else is redirected to their own home.
-const ADMIN_ONLY_PREFIXES = [
-  "/teams",
-  "/users",
-  "/buyers",
-  "/cards",
-  "/capture",
-  "/analytics",
-  "/settings",
-];
 
-function isPublic(pathname: string): boolean {
-  if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/")))
-    return true;
+function isPublicPage(pathname: string): boolean {
+  return PUBLIC_PAGES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+function isPublicApi(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
-}
-
-function hit(pathname: string, prefix: string): boolean {
-  return pathname === prefix || pathname.startsWith(prefix + "/");
-}
-
-/** Where each role lands when bounced from a page they can't see. */
-function homeFor(role: Role): string {
-  return role === "buyer" ? "/buy" : "/";
-}
-
-/**
- * Page-level authorization by role. Admins see everything. The purchasing
- * surfaces (`/buy` and the create-subscription form) belong to admins + buyers;
- * everything else (dashboard, requests, review) belongs to admins + team leads.
- * Buyers are confined to the buy queue, the create form, and /subscriptions
- * (their own purchases). Not a security boundary on its own — pages/actions
- * re-check — just the routing that keeps each role in its lane.
- */
-function isAllowed(pathname: string, role: Role): boolean {
-  if (role === "admin") return true;
-  if (ADMIN_ONLY_PREFIXES.some((p) => hit(pathname, p))) return false;
-
-  const isCreateForm = pathname === "/subscriptions/new";
-  const inBuyQueue = hit(pathname, "/buy");
-
-  if (role === "buyer") {
-    // Buyers: the to-buy queue, the create form, the subscriptions list, and
-    // the cancellations queue they finalize.
-    return (
-      inBuyQueue ||
-      isCreateForm ||
-      hit(pathname, "/subscriptions") ||
-      hit(pathname, "/cancellations")
-    );
-  }
-  // team_lead: everything except the buyer-owned surfaces.
-  return !inBuyQueue && !isCreateForm;
 }
 
 export async function proxy(request: NextRequest) {
@@ -111,45 +73,56 @@ export async function proxy(request: NextRequest) {
   else if (email && allowlist.includes(email)) role = "admin";
 
   const isAuthed = role !== null;
-
   const { pathname } = request.nextUrl;
 
   // Any redirect must carry over cookies written during getUser() (refresh
-  // token rotation) — otherwise the browser keeps a stale, already-rotated
-  // token and the session dies on the next request.
-  function redirectWithCookies(url: URL): NextResponse {
+  // token rotation) — otherwise the browser keeps a stale token.
+  function redirectTo(path: string): NextResponse {
+    const url = request.nextUrl.clone();
+    url.pathname = path;
+    url.search = "";
     const redirect = NextResponse.redirect(url);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
   }
 
-  // Gate 1: any non-public route requires an authenticated (admin/team_lead) session.
-  if (!isPublic(pathname) && !isAuthed) {
+  // ── Public pages ────────────────────────────────────────────────────────
+  if (isPublicPage(pathname)) {
+    // Signed-in users shouldn't sit on the login page.
+    if (pathname === "/login" && isAuthed && role) {
+      return redirectTo(homeFor(role));
+    }
+    return response;
+  }
+  if (isPublicApi(pathname)) return response;
+
+  // ── Everything else requires a session ───────────────────────────────────
+  if (!isAuthed || !role) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return redirectWithCookies(url);
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
   }
 
-  // Gate 2: role-gated pages — bounce to the role's own home. (Pages/actions
-  // re-check; this just keeps each role in its lane.)
-  if (isAuthed && role && !isPublic(pathname) && !isAllowed(pathname, role)) {
-    const url = request.nextUrl.clone();
-    url.pathname = homeFor(role);
-    url.search = "";
-    return redirectWithCookies(url);
-  }
+  // Authed API (sync, mercury, …): allowed; handlers do their own checks.
+  if (pathname.startsWith("/api/")) return response;
 
-  // Already signed in → keep users off the login page.
-  if (pathname === "/login" && isAuthed && role) {
-    const url = request.nextUrl.clone();
-    url.pathname = homeFor(role);
-    url.search = "";
-    return redirectWithCookies(url);
-  }
+  // ── Role-prefixed page routing ────────────────────────────────────────────
+  if (pathname === "/") return redirectTo(homeFor(role));
+
+  const segments = pathname.split("/").filter(Boolean);
+  const prefix = segments[0] ?? "";
+  const section = segments[1] ?? "";
+
+  // Must be inside your own role's space.
+  if (prefix !== PREFIX_FOR_ROLE[role]) return redirectTo(homeFor(role));
+  // …and a section your role is allowed to see.
+  if (!isSectionAllowed(role, section)) return redirectTo(homeFor(role));
 
   return response;
 }

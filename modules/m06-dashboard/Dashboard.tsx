@@ -280,10 +280,13 @@ export default async function Dashboard({
   teamId,
   isAdmin = false,
   cardFilter,
+  basePath,
 }: {
   teamId?: string;
   isAdmin?: boolean;
   cardFilter?: string;
+  /** Role-prefixed home path (e.g. "/admin"); used for in-dashboard links. */
+  basePath: string;
 }) {
   const [totals, renewals, spend] = await Promise.all([
     getDashboardTotals(teamId),
@@ -323,7 +326,7 @@ export default async function Dashboard({
           label="Needs review"
           value={totals ? String(totals.needs_review_count) : "—"}
           tone={totals && totals.needs_review_count > 0 ? "amber" : "default"}
-          href="/review"
+          href={`${basePath}/review`}
         />
         <StatTile
           label="Failures last 90 days"

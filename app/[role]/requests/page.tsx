@@ -3,6 +3,7 @@ import { Card } from "@astryxdesign/core/Card";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { getSessionUser } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
 import { RequestsPanel } from "@/modules/m07-requests/RequestsPanel";
 
 export const metadata = {
@@ -16,10 +17,12 @@ export default async function RequestsPage({
 }) {
   const { tab } = await searchParams;
   const session = await getSessionUser();
+  if (!session) return null; // guarded by the [role] layout
+  const basePath = rolePath(session.role, "requests");
 
   // Team leads only ever see their own team's requests; an unassigned lead
   // can't see anything yet. Admins (teamId omitted) see everything.
-  if (session?.role === "team_lead") {
+  if (session.role === "team_lead") {
     if (!session.teamId) {
       return (
         <div className="space-y-8">
@@ -35,7 +38,7 @@ export default async function RequestsPage({
     return (
       <div className="space-y-8">
         <Heading level={1}>Subscription requests</Heading>
-        <RequestsPanel tab={tab} teamId={session.teamId} />
+        <RequestsPanel tab={tab} teamId={session.teamId} basePath={basePath} />
       </div>
     );
   }
@@ -43,7 +46,7 @@ export default async function RequestsPage({
   return (
     <div className="space-y-8">
       <Heading level={1}>Subscription requests</Heading>
-      <RequestsPanel tab={tab} />
+      <RequestsPanel tab={tab} basePath={basePath} />
     </div>
   );
 }

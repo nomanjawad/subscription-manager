@@ -307,9 +307,12 @@ function TabLink({
 export async function RequestsPanel({
   tab,
   teamId,
+  basePath,
 }: {
   tab: string | undefined;
   teamId?: string;
+  /** Role-prefixed path to this page, e.g. "/admin/requests". */
+  basePath: string;
 }) {
   const active = normalizeTab(tab);
 
@@ -324,17 +327,17 @@ export async function RequestsPanel({
     <div className="space-y-4">
       <div className="inline-flex items-center gap-1 rounded-lg border border-default p-1">
         <TabLink
-          href="/requests?tab=requested"
+          href={`${basePath}?tab=requested`}
           label={`Requested (${counts.requested})`}
           active={active === "requested"}
         />
         <TabLink
-          href="/requests?tab=pending"
+          href={`${basePath}?tab=pending`}
           label={`Pending purchase (${counts.approved})`}
           active={active === "pending"}
         />
         <TabLink
-          href="/requests?tab=history"
+          href={`${basePath}?tab=history`}
           label="History"
           active={active === "history"}
         />

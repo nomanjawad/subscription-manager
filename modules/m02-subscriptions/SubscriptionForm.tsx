@@ -32,6 +32,8 @@ interface SubscriptionFormProps {
   teams?: TeamOption[];
   lockedTeamId?: string | null;
   lockedTeamName?: string | null;
+  /** Role-prefixed path the Cancel button returns to. */
+  cancelHref: string;
 }
 
 export function SubscriptionForm({
@@ -40,6 +42,7 @@ export function SubscriptionForm({
   teams = [],
   lockedTeamId,
   lockedTeamName,
+  cancelHref,
 }: SubscriptionFormProps) {
   const isEdit = subscription !== undefined;
   const action = isEdit
@@ -223,7 +226,7 @@ export function SubscriptionForm({
             variant="primary"
             label={isEdit ? "Save changes" : "Add subscription"}
           />
-          <Button as={Link} href="/subscriptions" variant="ghost" label="Cancel" />
+          <Button as={Link} href={cancelHref} variant="ghost" label="Cancel" />
         </HStack>
       </Card>
     </form>

@@ -39,13 +39,13 @@ export default async function SettingsPage({
 
       <div className="inline-flex items-center gap-1 rounded-lg border border-default p-1">
         <LinkButton
-          href="/settings?tab=email"
+          href="/admin/settings?tab=email"
           label="Email"
           variant={tab === "email" ? "secondary" : "ghost"}
           size="sm"
         />
         <LinkButton
-          href="/settings?tab=bank"
+          href="/admin/settings?tab=bank"
           label="Bank API"
           variant={tab === "bank" ? "secondary" : "ghost"}
           size="sm"

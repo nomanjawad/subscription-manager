@@ -9,6 +9,7 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
+import { Selector } from "@astryxdesign/core/Selector";
 import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
 
@@ -18,6 +19,7 @@ export function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState(signIn, initialState);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
 
   return (
     <Card width={380} padding={6}>
@@ -35,6 +37,19 @@ export function LoginForm({ next }: { next: string }) {
           <input type="hidden" name="next" value={next} />
           <input type="hidden" name="email" value={email} />
           <input type="hidden" name="password" value={password} />
+          <input type="hidden" name="role" value={role} />
+
+          <Selector
+            label="Sign in as"
+            value={role}
+            onChange={setRole}
+            placeholder="Choose your role"
+            options={[
+              { value: "admin", label: "Admin" },
+              { value: "team_lead", label: "Team lead" },
+              { value: "buyer", label: "Buyer" },
+            ]}
+          />
 
           <TextInput
             label="Email"

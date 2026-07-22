@@ -5,6 +5,7 @@
 import { Heading } from "@astryxdesign/core/Heading";
 import { LinkButton } from "@/components/LinkButton";
 import { requireBuyerOrAdmin } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
 import { getActiveCards } from "@/modules/m01-cards/queries";
 import { SubscriptionForm } from "@/modules/m02-subscriptions/SubscriptionForm";
 import { getSubscriptionOverview } from "@/modules/m02-subscriptions/queries";
@@ -18,7 +19,8 @@ export default async function NewSubscriptionPage({
   searchParams: Promise<{ edit?: string }>;
 }) {
   const { edit } = await searchParams;
-  await requireBuyerOrAdmin();
+  const session = await requireBuyerOrAdmin();
+  const backHref = rolePath(session.role, "subscriptions");
 
   const [cards, teams, editing] = await Promise.all([
     getActiveCards(),
@@ -35,7 +37,7 @@ export default async function NewSubscriptionPage({
           {isEdit ? `Edit subscription — ${editing.platform}` : "Add subscription"}
         </Heading>
         <LinkButton
-          href="/subscriptions"
+          href={backHref}
           variant="ghost"
           label="Back to subscriptions"
         />
@@ -46,6 +48,7 @@ export default async function NewSubscriptionPage({
         cards={cards}
         teams={teams}
         subscription={editing ?? undefined}
+        cancelHref={backHref}
       />
     </div>
   );

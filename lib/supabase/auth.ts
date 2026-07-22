@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/lib/types";
+import { homeFor } from "@/lib/roles";
 
 export async function createAuthClient() {
   const cookieStore = await cookies();
@@ -93,7 +94,7 @@ export async function requireSession(): Promise<SessionUser> {
 export async function requireAdmin(): Promise<SessionUser> {
   const session = await getSessionUser();
   if (!session) redirect("/login");
-  if (session.role !== "admin") redirect("/");
+  if (session.role !== "admin") redirect(homeFor(session.role));
   return session;
 }
 
@@ -104,6 +105,7 @@ export async function requireAdmin(): Promise<SessionUser> {
 export async function requireBuyerOrAdmin(): Promise<SessionUser> {
   const session = await getSessionUser();
   if (!session) redirect("/login");
-  if (session.role !== "admin" && session.role !== "buyer") redirect("/");
+  if (session.role !== "admin" && session.role !== "buyer")
+    redirect(homeFor(session.role));
   return session;
 }

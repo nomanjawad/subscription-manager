@@ -5,6 +5,7 @@ import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
 import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
 import { FilterBar } from "@/modules/m02-subscriptions/FilterBar";
 import { SubscriptionTable } from "@/modules/m02-subscriptions/SubscriptionTable";
 import {
@@ -33,10 +34,13 @@ export default async function SubscriptionsPage({
 }) {
   const params = await searchParams;
   const session = await getSessionUser();
+  if (!session) return null; // the [role] layout has already guarded this
+
+  const newHref = rolePath(session.role, "subscriptions/new");
 
   // Team scoping is server-enforced (not a user-facing filter): a team lead
   // only ever sees their own team's rows.
-  if (session?.role === "team_lead" && session.teamId === null) {
+  if (session.role === "team_lead" && session.teamId === null) {
     return (
       <div className="space-y-6">
         <Heading level={1}>Subscriptions</Heading>
@@ -90,7 +94,7 @@ export default async function SubscriptionsPage({
         {canCreate ? (
           <div className="flex items-center gap-2">
             <LinkButton
-              href="/subscriptions/new"
+              href={newHref}
               variant="primary"
               label="Add subscription"
             />
@@ -98,7 +102,11 @@ export default async function SubscriptionsPage({
         ) : null}
       </div>
 
-      <SubscriptionTable rows={rows} canManage={canManage} />
+      <SubscriptionTable
+        rows={rows}
+        canManage={canManage}
+        newBasePath={newHref}
+      />
 
       <Text type="supporting">
         {rows.length} subscription{rows.length === 1 ? "" : "s"}

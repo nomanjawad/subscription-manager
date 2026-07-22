@@ -22,6 +22,8 @@ interface SubscriptionTableProps {
   /** Show row lifecycle actions (edit / request-cancellation / reactivate).
    *  Buyers viewing their purchases get a read-only table. */
   canManage?: boolean;
+  /** Role-prefixed path to the create/edit form, e.g. "/admin/subscriptions/new". */
+  newBasePath: string;
 }
 
 function StatusBadge({ status }: { status: SubscriptionOverviewRow["status"] }) {
@@ -67,6 +69,7 @@ function cardLabel(row: SubscriptionOverviewRow): string {
 export async function SubscriptionTable({
   rows,
   canManage = true,
+  newBasePath,
 }: SubscriptionTableProps) {
   if (rows.length === 0) {
     return (
@@ -140,7 +143,7 @@ export async function SubscriptionTable({
               {canManage ? (
                 <div className="inline-flex items-center gap-1">
                   <LinkButton
-                    href={`/subscriptions/new?edit=${row.id}`}
+                    href={`${newBasePath}?edit=${row.id}`}
                     label="Edit"
                     variant="ghost"
                     size="sm"

@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth";
+import { rolePath } from "@/lib/roles";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { BillingCycle } from "@/lib/types";
 
@@ -204,9 +205,10 @@ export async function createSubscription(formData: FormData): Promise<void> {
     throw new Error(`Failed to create subscription: ${error.message}`);
   }
 
-  revalidatePath("/subscriptions");
+  const dest = rolePath(session.role, "subscriptions");
+  revalidatePath(dest);
   // Back to the table after a successful create.
-  redirect("/subscriptions");
+  redirect(dest);
 }
 
 export async function updateSubscription(
@@ -229,9 +231,11 @@ export async function updateSubscription(
     throw new Error(`Failed to update subscription: ${error.message}`);
   }
 
-  revalidatePath("/subscriptions");
+  const session = await getSessionUser();
+  const dest = rolePath(session?.role ?? "admin", "subscriptions");
+  revalidatePath(dest);
   // Leave edit mode (drops the ?edit=<id> search param).
-  redirect("/subscriptions");
+  redirect(dest);
 }
 
 async function setStatus(
