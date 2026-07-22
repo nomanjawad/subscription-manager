@@ -19,6 +19,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/buyers",
   "/cards",
   "/analytics",
+  "/settings",
 ];
 
 function isPublic(pathname: string): boolean {

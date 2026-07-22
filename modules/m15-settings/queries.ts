@@ -13,6 +13,33 @@ export interface SmtpSettingsView {
   updated_at: string | null;
 }
 
+export interface BankSettingsView {
+  api_url: string;
+  hasToken: boolean;
+  updated_at: string | null;
+}
+
+export async function getBankSettings(): Promise<BankSettingsView> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("bank_settings")
+    .select("api_url, api_token, updated_at")
+    .maybeSingle();
+  if (error) {
+    throw new Error(`Failed to load bank settings: ${error.message}`);
+  }
+  const row = (data as {
+    api_url: string | null;
+    api_token: string | null;
+    updated_at: string | null;
+  } | null) ?? null;
+  return {
+    api_url: row?.api_url ?? "",
+    hasToken: Boolean(row?.api_token),
+    updated_at: row?.updated_at ?? null,
+  };
+}
+
 export async function getSmtpSettings(): Promise<SmtpSettingsView> {
   const supabase = createServiceClient();
   const { data, error } = await supabase

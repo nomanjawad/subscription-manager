@@ -27,6 +27,7 @@ const adminNav: NavLink[] = [
   { href: "/buyers", label: "Buyers" },
   { href: "/cards", label: "Cards" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/settings", label: "Settings" },
 ];
 // A buyer's whole world: their to-buy queue and the subscriptions they bought.
 const buyerNav: NavLink[] = [

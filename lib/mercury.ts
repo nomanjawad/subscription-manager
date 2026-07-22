@@ -1,5 +1,8 @@
-// Mercury API client — server-only. Reads MERCURY_API_URL / MERCURY_API_TOKEN,
-// so sandbox → production is an env change (README §3.4).
+// Mercury API client — server-only. Config comes from the bank_settings table
+// (edited by an admin under Settings → Bank API) and falls back to the
+// MERCURY_API_URL / MERCURY_API_TOKEN env vars, so sandbox → production can be
+// switched either in-app or via env.
+import { createServiceClient } from "@/lib/supabase/server";
 
 export interface MercuryAccount {
   id: string;
@@ -59,19 +62,36 @@ interface TransactionsResponse {
   transactions: MercuryTransaction[];
 }
 
-function config() {
-  const base = process.env.MERCURY_API_URL;
-  const token = process.env.MERCURY_API_TOKEN;
+/** Read the admin-editable bank_settings row, or null if none/unreadable. */
+async function dbConfig(): Promise<{ url?: string; token?: string } | null> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("bank_settings")
+      .select("api_url, api_token")
+      .maybeSingle();
+    if (error || !data) return null;
+    return { url: data.api_url ?? undefined, token: data.api_token ?? undefined };
+  } catch {
+    return null;
+  }
+}
+
+/** Effective Mercury config: DB settings win, env fills the gaps. */
+async function config(): Promise<{ base: string; token: string }> {
+  const db = (await dbConfig()) ?? {};
+  const base = db.url || process.env.MERCURY_API_URL;
+  const token = db.token || process.env.MERCURY_API_TOKEN;
   if (!base || !token) {
     throw new Error(
-      "MERCURY_API_URL and MERCURY_API_TOKEN must be set in .env.local",
+      "Mercury API is not configured — set it under Settings → Bank API (or MERCURY_API_URL / MERCURY_API_TOKEN in .env.local).",
     );
   }
   return { base: base.replace(/\/$/, ""), token };
 }
 
 async function mercuryGet<T>(path: string): Promise<T> {
-  const { base, token } = config();
+  const { base, token } = await config();
   const res = await fetch(`${base}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     // Bank data must never be served stale from Next's fetch cache

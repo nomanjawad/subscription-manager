@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { sendRawEmail } from "@/lib/email/send";
+import { listAccounts } from "@/lib/mercury";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -65,6 +66,51 @@ export async function updateSmtpSettings(input: SmtpInput): Promise<void> {
   }
 
   revalidatePath("/users");
+}
+
+// ── Bank (Mercury) API ──────────────────────────────────────────────────────
+
+export interface BankInput {
+  api_url: string;
+  api_token: string; // blank = keep existing
+}
+
+export async function updateBankSettings(input: BankInput): Promise<void> {
+  await requireAdmin();
+
+  const apiUrl = clean(input.api_url);
+  if (apiUrl !== null && !/^https?:\/\//i.test(apiUrl)) {
+    throw new Error("API URL must start with http:// or https://");
+  }
+
+  const payload: Record<string, unknown> = { id: true, api_url: apiUrl };
+  const token = clean(input.api_token);
+  if (token !== null) payload.api_token = token;
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("bank_settings")
+    .upsert(payload, { onConflict: "id" });
+  if (error) {
+    throw new Error(`Failed to save bank settings: ${error.message}`);
+  }
+
+  revalidatePath("/settings");
+}
+
+/** Verify the Mercury credentials by listing accounts. Returns their count. */
+export async function testBankConnection(): Promise<{ accounts: number }> {
+  await requireAdmin();
+  try {
+    const accounts = await listAccounts();
+    return { accounts: accounts.length };
+  } catch (e) {
+    throw new Error(
+      e instanceof Error
+        ? `Connection failed: ${e.message}`
+        : "Connection failed — check the API URL and token.",
+    );
+  }
 }
 
 /** Send a test email to confirm the SMTP config actually works. */

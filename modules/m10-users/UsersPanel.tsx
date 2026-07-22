@@ -22,9 +22,6 @@ import {
   getMembers,
   getUnrecognizedRequesters,
 } from "./queries";
-import { SmtpSettingsCard } from "@/modules/m15-settings/SmtpSettingsCard";
-import { getSmtpSettings } from "@/modules/m15-settings/queries";
-import { MonthlyReportButton } from "@/modules/m14-reports/MonthlyReportButton";
 
 function fmtDate(ts: string | null): string {
   return ts ? ts.slice(0, 10) : "—";
@@ -54,11 +51,10 @@ function SectionHeader({
 }
 
 export async function UsersPanel() {
-  const [members, leads, unrecognized, smtp] = await Promise.all([
+  const [members, leads, unrecognized] = await Promise.all([
     getMembers(),
     getLeadOptions(),
     getUnrecognizedRequesters(),
-    getSmtpSettings(),
   ]);
 
   return (
@@ -172,9 +168,6 @@ export async function UsersPanel() {
         </Table>
       </Card>
     )}
-
-    <SmtpSettingsCard settings={smtp} />
-    <MonthlyReportButton />
     </div>
   );
 }
