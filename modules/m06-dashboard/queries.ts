@@ -8,6 +8,7 @@ import type {
   SpendByCardRow,
   SpendByMonthRow,
   SpendByPlatformRow,
+  SpendByTeamActualRow,
   SpendByTeamRow,
   UpcomingRenewalRow,
 } from "@/lib/types";
@@ -102,6 +103,33 @@ export async function getSpendByTeam(): Promise<SpendByTeamRow[]> {
     }));
   } catch (err) {
     console.error("[m06-dashboard] spend_by_team unavailable:", err);
+    return [];
+  }
+}
+
+/**
+ * ACTUAL money-out per team, from transactions → card → team (the counterpart
+ * to getSpendByTeam's planned/subscription spend). Includes an "Unassigned"
+ * row (team_id null) for spend on cards not yet assigned to a team.
+ */
+export async function getSpendByTeamActual(): Promise<SpendByTeamActualRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_team_actual");
+    if (error) {
+      console.error(
+        "[m06-dashboard] spend_by_team_actual failed:",
+        error.message,
+      );
+      return [];
+    }
+    return ((data ?? []) as SpendByTeamActualRow[]).map((r) => ({
+      ...r,
+      total_out: Number(r.total_out),
+      transaction_count: Number(r.transaction_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_team_actual unavailable:", err);
     return [];
   }
 }

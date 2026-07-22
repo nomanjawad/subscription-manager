@@ -182,11 +182,24 @@ async function authorizeExistingSubscription(
 }
 
 export async function createSubscription(formData: FormData): Promise<void> {
+  const session = await getSessionUser();
+  if (!session) {
+    throw new Error("You must be signed in to manage subscriptions.");
+  }
+  // Creating subscriptions belongs to the purchasing flow: admins + buyers.
+  // (Team leads approve/reject requests; they no longer create directly.)
+  if (session.role !== "admin" && session.role !== "buyer") {
+    throw new Error("Only buyers and admins can create subscriptions.");
+  }
+
   const input = parseSubscriptionForm(formData);
 
   const supabase = createServiceClient();
   await authorizeTeamId(supabase, input.team_id);
-  const { error } = await supabase.from("subscriptions").insert(input);
+  // Stamp who bought it, so it shows in the buyer's "My purchases".
+  const { error } = await supabase
+    .from("subscriptions")
+    .insert({ ...input, purchased_by: session.id });
   if (error) {
     throw new Error(`Failed to create subscription: ${error.message}`);
   }
@@ -242,10 +255,9 @@ async function setStatus(
   revalidatePath("/subscriptions");
 }
 
-export async function cancelSubscription(id: string): Promise<void> {
-  await setStatus(id, "cancelled");
-}
-
+// Direct cancellation is intentionally NOT exposed: cancelling goes through the
+// pending-cancellation flow (m13-cancellations) so only a buyer/admin finalizes.
+// setStatus stays for reactivation.
 export async function reactivateSubscription(id: string): Promise<void> {
   await setStatus(id, "active");
 }

@@ -1,16 +1,41 @@
 // m10-users — read queries for the admin Users directory. Service client only
 // (RLS is deny-all). Members are non-login people assigned to a team lead.
 import { createServiceClient } from "@/lib/supabase/server";
-import type { LeadOption, MemberDirectoryRow } from "@/lib/types";
+import type {
+  LeadOption,
+  MemberDirectoryRow,
+  UnrecognizedRequesterRow,
+} from "@/lib/types";
 
-/** All members with their assigned lead + team resolved (member_directory RPC). */
+/** All members with their lead + team + request activity (member_directory RPC). */
 export async function getMembers(): Promise<MemberDirectoryRow[]> {
   const supabase = createServiceClient();
   const { data, error } = await supabase.rpc("member_directory");
   if (error) {
     throw new Error(`Failed to load users: ${error.message}`);
   }
-  return (data ?? []) as MemberDirectoryRow[];
+  return ((data ?? []) as MemberDirectoryRow[]).map((r) => ({
+    ...r,
+    request_count: Number(r.request_count),
+  }));
+}
+
+/**
+ * Request emails that match no member — so an admin can add them and route
+ * their future requests automatically (unrecognized_requesters RPC).
+ */
+export async function getUnrecognizedRequesters(): Promise<
+  UnrecognizedRequesterRow[]
+> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("unrecognized_requesters");
+  if (error) {
+    throw new Error(`Failed to load unrecognized requesters: ${error.message}`);
+  }
+  return ((data ?? []) as UnrecognizedRequesterRow[]).map((r) => ({
+    ...r,
+    request_count: Number(r.request_count),
+  }));
 }
 
 /**

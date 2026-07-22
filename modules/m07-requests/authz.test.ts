@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   assertCanActOnRequestTeam,
+  assertCanPurchase,
   canActOnRequestTeam,
+  canPurchase,
   type ActingUser,
 } from "./authz";
 
@@ -12,6 +14,7 @@ const admin: ActingUser = { role: "admin", teamId: null };
 const adminWithTeam: ActingUser = { role: "admin", teamId: TEAM_A };
 const leadA: ActingUser = { role: "team_lead", teamId: TEAM_A };
 const leadNoTeam: ActingUser = { role: "team_lead", teamId: null };
+const buyer: ActingUser = { role: "buyer", teamId: null };
 
 describe("canActOnRequestTeam", () => {
   it("lets an admin act on any team's request", () => {
@@ -40,6 +43,30 @@ describe("canActOnRequestTeam", () => {
     // Guards against null === null being treated as a match.
     expect(canActOnRequestTeam(leadNoTeam, null)).toBe(false);
     expect(canActOnRequestTeam(leadNoTeam, TEAM_A)).toBe(false);
+  });
+
+  it("never lets a buyer review — buyers purchase, they don't approve", () => {
+    expect(canActOnRequestTeam(buyer, TEAM_A)).toBe(false);
+    expect(canActOnRequestTeam(buyer, null)).toBe(false);
+  });
+});
+
+describe("canPurchase", () => {
+  it("lets admins and buyers purchase (company-wide, no team scope)", () => {
+    expect(canPurchase(admin)).toBe(true);
+    expect(canPurchase(buyer)).toBe(true);
+  });
+
+  it("blocks team leads from purchasing", () => {
+    expect(canPurchase(leadA)).toBe(false);
+    expect(canPurchase(leadNoTeam)).toBe(false);
+  });
+
+  it("assert form throws a clear message for team leads", () => {
+    expect(() => assertCanPurchase(buyer)).not.toThrow();
+    expect(() => assertCanPurchase(leadA)).toThrow(
+      "Only buyers and admins can mark requests purchased.",
+    );
   });
 });
 

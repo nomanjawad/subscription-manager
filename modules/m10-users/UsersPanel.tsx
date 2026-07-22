@@ -14,9 +14,18 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
+import { Badge } from "@astryxdesign/core/Badge";
 import { AddUserDialog } from "./AddUserDialog";
 import { ReassignUserSelect, RemoveUserButton } from "./UserRowActions";
-import { getLeadOptions, getMembers } from "./queries";
+import {
+  getLeadOptions,
+  getMembers,
+  getUnrecognizedRequesters,
+} from "./queries";
+
+function fmtDate(ts: string | null): string {
+  return ts ? ts.slice(0, 10) : "—";
+}
 
 function SectionHeader({
   title,
@@ -42,9 +51,14 @@ function SectionHeader({
 }
 
 export async function UsersPanel() {
-  const [members, leads] = await Promise.all([getMembers(), getLeadOptions()]);
+  const [members, leads, unrecognized] = await Promise.all([
+    getMembers(),
+    getLeadOptions(),
+    getUnrecognizedRequesters(),
+  ]);
 
   return (
+    <div className="space-y-8">
     <Card padding={0}>
       <SectionHeader
         title="Users"
@@ -68,6 +82,8 @@ export async function UsersPanel() {
               <TableHeaderCell>Email</TableHeaderCell>
               <TableHeaderCell>Team lead</TableHeaderCell>
               <TableHeaderCell>Team</TableHeaderCell>
+              <TableHeaderCell>Requests</TableHeaderCell>
+              <TableHeaderCell>Last request</TableHeaderCell>
               <TableHeaderCell className="text-right">Actions</TableHeaderCell>
             </TableRow>
           </TableHeader>
@@ -90,6 +106,12 @@ export async function UsersPanel() {
                     <span className="text-secondary">Unassigned</span>
                   )}
                 </TableCell>
+                <TableCell>
+                  <Badge variant="neutral" label={String(member.request_count)} />
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-secondary">
+                  {fmtDate(member.last_requested_at)}
+                </TableCell>
                 <TableCell className="text-right">
                   <RemoveUserButton memberId={member.id} />
                 </TableCell>
@@ -99,5 +121,53 @@ export async function UsersPanel() {
         </Table>
       )}
     </Card>
+
+    {unrecognized.length > 0 && (
+      <Card padding={0}>
+        <SectionHeader
+          title="Unrecognized requesters"
+          description="These emails submitted requests but aren't registered users, so their requests weren't auto-routed to a team. Add them as users to route future requests."
+          action={null}
+        />
+        <Table density="compact">
+          <TableHeader>
+            <TableRow isHeaderRow>
+              <TableHeaderCell>Name</TableHeaderCell>
+              <TableHeaderCell>Email</TableHeaderCell>
+              <TableHeaderCell>Requests</TableHeaderCell>
+              <TableHeaderCell>Last request</TableHeaderCell>
+              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {unrecognized.map((r) => (
+              <TableRow key={r.requester_email}>
+                <TableCell className="font-medium text-primary">
+                  {r.requester_name ?? "—"}
+                </TableCell>
+                <TableCell>{r.requester_email}</TableCell>
+                <TableCell>
+                  <Badge variant="neutral" label={String(r.request_count)} />
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-secondary">
+                  {fmtDate(r.last_requested_at)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <AddUserDialog
+                    leads={leads}
+                    initialName={r.requester_name ?? ""}
+                    initialEmail={r.requester_email}
+                    triggerLabel="Add as user"
+                    triggerVariant="secondary"
+                    triggerSize="sm"
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    )}
+    </div>
   );
 }

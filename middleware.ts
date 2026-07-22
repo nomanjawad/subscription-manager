@@ -4,10 +4,23 @@ import { NextResponse, type NextRequest } from "next/server";
 // Public surface: login, the open request form, cron (Bearer-secret) and dev
 // seed (disabled in prod builds). Everything else — including /api/sync/* and
 // /api/mercury/* — requires an admin or team-lead session.
-const PUBLIC_PAGES = ["/login", "/subscription-request"];
+type Role = "admin" | "team_lead" | "buyer";
+
+const PUBLIC_PAGES = [
+  "/login",
+  "/subscription-request",
+  "/cancellation-request",
+];
 const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
-// Admin-only pages: team leads are redirected to their dashboard.
-const ADMIN_ONLY_PREFIXES = ["/teams", "/users", "/cards", "/analytics"];
+// Admin-only pages: everyone else is redirected to their own home.
+const ADMIN_ONLY_PREFIXES = [
+  "/teams",
+  "/users",
+  "/buyers",
+  "/cards",
+  "/analytics",
+  "/email-templates",
+];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PAGES.some((p) => pathname === p || pathname.startsWith(p + "/")))
@@ -15,10 +28,42 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
-function isAdminOnly(pathname: string): boolean {
-  return ADMIN_ONLY_PREFIXES.some(
-    (p) => pathname === p || pathname.startsWith(p + "/"),
-  );
+function hit(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
+/** Where each role lands when bounced from a page they can't see. */
+function homeFor(role: Role): string {
+  return role === "buyer" ? "/buy" : "/";
+}
+
+/**
+ * Page-level authorization by role. Admins see everything. The purchasing
+ * surfaces (`/buy` and the create-subscription form) belong to admins + buyers;
+ * everything else (dashboard, requests, review) belongs to admins + team leads.
+ * Buyers are confined to the buy queue, the create form, and /subscriptions
+ * (their own purchases). Not a security boundary on its own — pages/actions
+ * re-check — just the routing that keeps each role in its lane.
+ */
+function isAllowed(pathname: string, role: Role): boolean {
+  if (role === "admin") return true;
+  if (ADMIN_ONLY_PREFIXES.some((p) => hit(pathname, p))) return false;
+
+  const isCreateForm = pathname === "/subscriptions/new";
+  const inBuyQueue = hit(pathname, "/buy");
+
+  if (role === "buyer") {
+    // Buyers: the to-buy queue, the create form, the subscriptions list, and
+    // the cancellations queue they finalize.
+    return (
+      inBuyQueue ||
+      isCreateForm ||
+      hit(pathname, "/subscriptions") ||
+      hit(pathname, "/cancellations")
+    );
+  }
+  // team_lead: everything except the buyer-owned surfaces.
+  return !inBuyQueue && !isCreateForm;
 }
 
 export async function middleware(request: NextRequest) {
@@ -59,12 +104,12 @@ export async function middleware(request: NextRequest) {
   // Mirrors lib/supabase/auth.ts:resolveRole — kept DB-free for the edge.
   const email = user?.email?.toLowerCase() ?? null;
   const metaRole = user?.app_metadata?.role;
-  let role: "admin" | "team_lead" | null = null;
-  if (metaRole === "admin" || metaRole === "team_lead") role = metaRole;
+  let role: Role | null = null;
+  if (metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer")
+    role = metaRole;
   else if (email && allowlist.includes(email)) role = "admin";
 
   const isAuthed = role !== null;
-  const isAdmin = role === "admin";
 
   const { pathname } = request.nextUrl;
 
@@ -88,18 +133,19 @@ export async function middleware(request: NextRequest) {
     return redirectWithCookies(url);
   }
 
-  // Gate 2: admin-only pages — team leads get bounced to their dashboard.
-  if (isAuthed && !isAdmin && isAdminOnly(pathname)) {
+  // Gate 2: role-gated pages — bounce to the role's own home. (Pages/actions
+  // re-check; this just keeps each role in its lane.)
+  if (isAuthed && role && !isPublic(pathname) && !isAllowed(pathname, role)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = homeFor(role);
     url.search = "";
     return redirectWithCookies(url);
   }
 
   // Already signed in → keep users off the login page.
-  if (pathname === "/login" && isAuthed) {
+  if (pathname === "/login" && isAuthed && role) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = homeFor(role);
     url.search = "";
     return redirectWithCookies(url);
   }

@@ -5,7 +5,8 @@ export type BillingCycle = "monthly" | "yearly";
 export type SubscriptionStatus = "active" | "cancelled";
 export type CheckStatus = "pending" | "renewed" | "failed" | "needs_review";
 export type RequestStatus = "requested" | "approved" | "rejected" | "purchased";
-export type UserRole = "admin" | "team_lead";
+export type CancellationStatus = "pending" | "cancelled";
+export type UserRole = "admin" | "team_lead" | "buyer";
 
 // ── Teams & roles ──────────────────────────────────────────────────────────
 
@@ -53,7 +54,8 @@ export interface MemberRow {
   created_at: string;
 }
 
-/** A member joined with their assigned lead + that lead's team (admin UI). */
+/** A member joined with their assigned lead + that lead's team, plus how many
+ *  requests they've submitted and when they last did (admin UI). */
 export interface MemberDirectoryRow {
   id: string;
   full_name: string | null;
@@ -63,13 +65,48 @@ export interface MemberDirectoryRow {
   lead_email: string | null;
   team_id: string | null;
   team_name: string | null;
+  request_count: number;
+  last_requested_at: string | null;
   created_at: string;
+}
+
+/** A request email that matches no member — surfaced so an admin can add them
+ *  (admin Users UI). */
+export interface UnrecognizedRequesterRow {
+  requester_email: string;
+  requester_name: string | null;
+  request_count: number;
+  last_requested_at: string | null;
 }
 
 /** A team lead as a pickable option (admin "assign to lead" controls). */
 export interface LeadOption {
   id: string;
   label: string;
+}
+
+/**
+ * A "buyer": a login user (role='buyer', no team) whose job is to purchase
+ * approved requests company-wide. purchase_count is how many subscriptions
+ * they've bought (stamped via subscriptions.purchased_by).
+ */
+export interface BuyerRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  purchase_count: number;
+  created_at: string;
+}
+
+/** An editable transactional email template (email_templates table). `design`
+ *  is the Unlayer editor JSON; `html` is what actually gets sent. */
+export interface EmailTemplateRow {
+  key: string;
+  name: string;
+  subject: string;
+  html: string;
+  design: unknown | null;
+  updated_at: string;
 }
 
 export interface CardRow {
@@ -82,7 +119,13 @@ export interface CardRow {
   network: string | null;
   card_type: string | null;
   status: string;
+  team_id: string | null;
   synced_at: string;
+}
+
+/** A card joined with the name of the team it's assigned to (admin Cards UI). */
+export interface CardWithTeamRow extends CardRow {
+  team_name: string | null;
 }
 
 export interface SubscriptionRow {
@@ -100,6 +143,7 @@ export interface SubscriptionRow {
   notes: string | null;
   tag: string | null;
   team_id: string | null;
+  purchased_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -192,6 +236,33 @@ export interface SubscriptionOverviewRow {
   tag: string | null;
   team_id: string | null;
   team_name: string | null;
+  purchased_by: string | null;
+  purchased_by_name: string | null;
+  cancellation_pending: boolean;
+}
+
+/** A cancellation request joined with team, actor names, and (if linked) the
+ *  subscription's details (cancellation_overview view). */
+export interface CancellationOverviewRow {
+  id: string;
+  subscription_id: string | null;
+  requester_name: string | null;
+  requester_email: string | null;
+  platform: string | null;
+  product: string | null;
+  reason: string | null;
+  team_id: string | null;
+  team_name: string | null;
+  status: CancellationStatus;
+  requested_by: string | null;
+  requested_by_name: string | null;
+  cancelled_by: string | null;
+  cancelled_by_name: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+  sub_status: SubscriptionStatus | null;
+  sub_amount: number | null;
+  sub_currency: string | null;
 }
 
 export interface ReviewQueueRow {
@@ -262,6 +333,15 @@ export interface SpendByTeamRow {
   team_name: string;
   monthly_amount: number;
   subscription_count: number;
+}
+
+/** Actual money-out per team, derived from transactions → card → team. The
+ *  team_id-null row is the 'Unassigned' bucket (spend on cards with no team). */
+export interface SpendByTeamActualRow {
+  team_id: string | null;
+  team_name: string;
+  total_out: number;
+  transaction_count: number;
 }
 
 export interface SpendByCardRow {

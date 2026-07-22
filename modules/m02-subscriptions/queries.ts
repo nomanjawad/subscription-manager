@@ -13,6 +13,8 @@ export interface SubscriptionFilters {
   q?: string;
   /** Team scope. Server-enforced (not a user-facing filter). */
   teamId?: string;
+  /** Buyer scope: only subscriptions this profile bought. Server-enforced. */
+  purchasedBy?: string;
 }
 
 /**
@@ -26,6 +28,7 @@ export async function getSubscriptions(
   let query = supabase.from("subscription_overview").select("*");
 
   if (filters.teamId) query = query.eq("team_id", filters.teamId);
+  if (filters.purchasedBy) query = query.eq("purchased_by", filters.purchasedBy);
   if (filters.tag) query = query.eq("tag", filters.tag);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.cycle) query = query.eq("billing_cycle", filters.cycle);

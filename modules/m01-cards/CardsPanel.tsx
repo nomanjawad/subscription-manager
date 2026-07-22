@@ -15,8 +15,10 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
-import type { CardRow } from "@/lib/types";
+import type { CardWithTeamRow } from "@/lib/types";
+import { getTeamsPublic } from "@/modules/m08-teams/queries";
 import { CardAliasField } from "./CardAliasField";
+import { CardTeamField } from "./CardTeamField";
 import { SyncCardsButton } from "./SyncCardsButton";
 import { getAllCards } from "./queries";
 
@@ -34,7 +36,8 @@ function fmtSynced(ts: string): string {
 }
 
 export async function CardsPanel() {
-  const cards: CardRow[] = await getAllCards();
+  const [cards, teams]: [CardWithTeamRow[], Awaited<ReturnType<typeof getTeamsPublic>>] =
+    await Promise.all([getAllCards(), getTeamsPublic()]);
 
   return (
     <Card padding={0}>
@@ -43,7 +46,8 @@ export async function CardsPanel() {
           <Heading level={3}>Cards</Heading>
           <Text type="supporting">
             Synced from Mercury. Give a card an alias (e.g. “Backoffice card”) to
-            organize it — aliases survive every re-sync.
+            organize it, and assign it to a team so its spend is tracked there —
+            both survive every re-sync.
           </Text>
         </div>
         <SyncCardsButton />
@@ -63,6 +67,7 @@ export async function CardsPanel() {
               <TableHeaderCell>Card</TableHeaderCell>
               <TableHeaderCell>Last 4</TableHeaderCell>
               <TableHeaderCell>Alias</TableHeaderCell>
+              <TableHeaderCell>Team</TableHeaderCell>
               <TableHeaderCell>Status</TableHeaderCell>
               <TableHeaderCell>Synced</TableHeaderCell>
             </TableRow>
@@ -85,6 +90,13 @@ export async function CardsPanel() {
                 </TableCell>
                 <TableCell>
                   <CardAliasField cardId={card.id} alias={card.nickname} />
+                </TableCell>
+                <TableCell>
+                  <CardTeamField
+                    cardId={card.id}
+                    currentTeamId={card.team_id}
+                    teams={teams}
+                  />
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={card.status} />

@@ -10,6 +10,7 @@ import {
   SideNavHeading,
 } from "@astryxdesign/core/SideNav";
 import { Button } from "@astryxdesign/core/Button";
+import type { UserRole } from "@/lib/types";
 import { signOut } from "@/lib/auth/actions";
 
 export interface NavLink {
@@ -18,22 +19,30 @@ export interface NavLink {
   icon?: string;
 }
 
+const ROLE_LABEL: Record<UserRole, string> = {
+  admin: "Admin",
+  team_lead: "Team lead",
+  buyer: "Buyer",
+};
+
 export function AppSideNav({
   role,
   items,
 }: {
-  role: "admin" | "team_lead";
+  role: UserRole;
   items: NavLink[];
 }) {
   const pathname = usePathname();
+  // Buyers live in the /buy queue — that's their home, not the dashboard.
+  const home = role === "buyer" ? "/buy" : "/";
   return (
     <SideNav
       header={
         <SideNavHeading
           heading="Subscription Manager"
           superheading="sandbox"
-          subheading={role === "admin" ? "Admin" : "Team lead"}
-          headingHref="/"
+          subheading={ROLE_LABEL[role]}
+          headingHref={home}
         />
       }
       footer={

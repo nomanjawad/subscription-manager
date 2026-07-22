@@ -51,6 +51,14 @@ export default async function SubscriptionsPage({
 
   const teamId =
     session?.role === "team_lead" ? (session.teamId ?? undefined) : undefined;
+  // Buyers only ever see the subscriptions they themselves bought.
+  const isBuyer = session?.role === "buyer";
+  const purchasedBy = isBuyer ? session.id : undefined;
+  const canCreate = session?.role === "admin" || isBuyer;
+  // Buyers get a read-only view of their purchases; admins/leads can manage rows.
+  const canManage =
+    session?.role === "admin" || session?.role === "team_lead";
+  const heading = isBuyer ? "My purchases" : "Subscriptions";
 
   const status =
     params.status === "active" || params.status === "cancelled"
@@ -68,26 +76,29 @@ export default async function SubscriptionsPage({
       cycle,
       q: single(params.q),
       teamId,
+      purchasedBy,
     }),
     getTags(teamId),
   ]);
 
   return (
     <div className="space-y-6">
-      <Heading level={1}>Subscriptions</Heading>
+      <Heading level={1}>{heading}</Heading>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <FilterBar tags={tags} />
-        <div className="flex items-center gap-2">
-          <LinkButton
-            href="/subscriptions/new"
-            variant="primary"
-            label="Add subscription"
-          />
-        </div>
+        {canCreate ? (
+          <div className="flex items-center gap-2">
+            <LinkButton
+              href="/subscriptions/new"
+              variant="primary"
+              label="Add subscription"
+            />
+          </div>
+        ) : null}
       </div>
 
-      <SubscriptionTable rows={rows} />
+      <SubscriptionTable rows={rows} canManage={canManage} />
 
       <Text type="supporting">
         {rows.length} subscription{rows.length === 1 ? "" : "s"}

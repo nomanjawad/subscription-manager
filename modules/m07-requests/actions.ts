@@ -11,7 +11,13 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/auth";
 import type { BillingCycle, RequestStatus } from "@/lib/types";
-import { assertCanActOnRequestTeam } from "./authz";
+import { assertCanActOnRequestTeam, assertCanPurchase } from "./authz";
+import {
+  notifyPurchased,
+  notifyReviewed,
+  notifySubmitted,
+  type NotifiableRequest,
+} from "./notify";
 
 export interface SubmitState {
   ok: boolean;
@@ -199,6 +205,21 @@ export async function submitRequest(
     return fail("Could not submit your request right now. Please try again.");
   }
 
+  // Fire notifications (best-effort — never blocks the submit).
+  await notifySubmitted(
+    {
+      requester_name: requesterName,
+      requester_email: requesterEmail,
+      platform,
+      product,
+      reason,
+      amount_estimate: amountEstimate,
+      billing_cycle: billingCycle,
+      team_id: teamId,
+    },
+    autoApprove,
+  );
+
   revalidatePath("/requests");
   return { ok: true, error: null };
 }
@@ -219,7 +240,9 @@ async function reviewRequest(
 
   const { data: existing, error: loadError } = await supabase
     .from("subscription_requests")
-    .select("team_id")
+    .select(
+      "requester_name, requester_email, platform, product, reason, amount_estimate, billing_cycle, team_id",
+    )
     .eq("id", id)
     .maybeSingle();
   if (loadError) {
@@ -230,11 +253,12 @@ async function reviewRequest(
   }
   assertCanActOnRequestTeam(session, existing.team_id);
 
+  const cleanedNote = cleanNote(note);
   const { data, error } = await supabase
     .from("subscription_requests")
     .update({
       status,
-      review_note: cleanNote(note),
+      review_note: cleanedNote,
       reviewed_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -247,6 +271,16 @@ async function reviewRequest(
   if (!data || data.length === 0) {
     throw new Error("Request not found or already reviewed.");
   }
+
+  // For a rejection, surface the review note as the "reason" in the email.
+  const reviewed = existing as NotifiableRequest;
+  await notifyReviewed(
+    {
+      ...reviewed,
+      reason: status === "rejected" ? cleanedNote : reviewed.reason,
+    },
+    status,
+  );
 
   revalidatePath("/requests");
 }
@@ -280,7 +314,9 @@ export async function purchaseRequest(
 
   const { data: request, error: fetchError } = await supabase
     .from("subscription_requests")
-    .select("id, status, platform, product, reviewed_at, team_id")
+    .select(
+      "id, status, platform, product, reason, amount_estimate, billing_cycle, requester_name, requester_email, reviewed_at, team_id",
+    )
     .eq("id", id)
     .maybeSingle();
   if (fetchError) {
@@ -289,7 +325,8 @@ export async function purchaseRequest(
   if (!request) {
     throw new Error("Request not found.");
   }
-  assertCanActOnRequestTeam(session, request.team_id);
+  // Purchasing is the buyers' job, company-wide (not team-scoped).
+  assertCanPurchase(session);
   if (request.status !== "approved") {
     throw new Error("Only approved requests can be marked purchased.");
   }
@@ -358,6 +395,7 @@ export async function purchaseRequest(
       tag,
       notes,
       team_id: request.team_id,
+      purchased_by: session.id, // the buyer/admin who bought it
     })
     .select("id")
     .single();
@@ -389,6 +427,13 @@ export async function purchaseRequest(
         : "Request was no longer approved — purchase rolled back.",
     );
   }
+
+  // Tell the requester their subscription is live (best-effort).
+  await notifyPurchased(request as unknown as NotifiableRequest, {
+    amount: Math.round(amount * 100) / 100,
+    currency,
+    nextRenewalDate,
+  });
 
   revalidatePath("/requests");
   revalidatePath("/subscriptions");

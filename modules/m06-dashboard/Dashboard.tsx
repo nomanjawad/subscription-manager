@@ -23,6 +23,7 @@ import {
   getSpendByMonth,
   getSpendByPlatform,
   getSpendByTeam,
+  getSpendByTeamActual,
   getUpcomingRenewals,
 } from "./queries";
 import { CardFilter } from "./CardFilter";
@@ -165,9 +166,10 @@ function cardLabel(row: {
 const SPEND_MONTHS = 12;
 
 async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
-  const [byMonth, byTeam, byCard] = await Promise.all([
+  const [byMonth, byTeam, byTeamActual, byCard] = await Promise.all([
     getSpendByMonth(SPEND_MONTHS, cardFilter),
     getSpendByTeam(),
+    getSpendByTeamActual(),
     getSpendByCard(),
   ]);
 
@@ -176,9 +178,20 @@ async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
     label: cardLabel(c),
   }));
   const monthHasData = byMonth.some((m) => m.total_out > 0);
+  // Actual spend sitting on cards not yet assigned to a team (team_id null).
+  const unassignedActual =
+    byTeamActual.find((t) => t.team_id === null)?.total_out ?? 0;
 
   return (
     <div className="space-y-6">
+      {unassignedActual > 0 && (
+        <Banner
+          status="warning"
+          title={`${money(unassignedActual)} of card spend isn't assigned to a team`}
+          description="Some transactions are on cards with no team. Assign those cards to a team on the Cards page so their spend is tracked."
+          container="card"
+        />
+      )}
       <SectionCard
         title="Monthly spend"
         action={<CardFilter cards={cardOptions} selected={cardFilter} />}
@@ -199,7 +212,7 @@ async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
       </SectionCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Spend by team">
+        <SectionCard title="Spend by team — planned">
           {byTeam.length === 0 ? (
             <EmptyState>No team spend to report yet.</EmptyState>
           ) : (
@@ -212,29 +225,49 @@ async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
                 formatValue={(n) => money(n)}
               />
               <Text as="p" type="supporting" className="mt-4 block">
-                Normalized monthly subscription cost per team.
+                Normalized monthly subscription cost committed per team.
               </Text>
             </Panel>
           )}
         </SectionCard>
 
-        <SectionCard title="Spend by card">
-          {byCard.length === 0 ? (
-            <EmptyState>No card transactions synced yet.</EmptyState>
+        <SectionCard title="Spend by team — actual">
+          {byTeamActual.length === 0 ? (
+            <EmptyState>No card transactions to attribute yet.</EmptyState>
           ) : (
             <Panel>
               <BarList
-                data={byCard.map((c) => ({
-                  label: cardLabel(c),
-                  value: c.total_out,
-                  sub: `· ${c.transaction_count} tx`,
+                data={byTeamActual.map((t) => ({
+                  label: t.team_name,
+                  value: t.total_out,
+                  sub: `· ${t.transaction_count} tx`,
                 }))}
                 formatValue={(n) => money(n)}
               />
+              <Text as="p" type="supporting" className="mt-4 block">
+                Real money out of Mercury, attributed by the card&apos;s team.
+              </Text>
             </Panel>
           )}
         </SectionCard>
       </div>
+
+      <SectionCard title="Spend by card">
+        {byCard.length === 0 ? (
+          <EmptyState>No card transactions synced yet.</EmptyState>
+        ) : (
+          <Panel>
+            <BarList
+              data={byCard.map((c) => ({
+                label: cardLabel(c),
+                value: c.total_out,
+                sub: `· ${c.transaction_count} tx`,
+              }))}
+              formatValue={(n) => money(n)}
+            />
+          </Panel>
+        )}
+      </SectionCard>
     </div>
   );
 }

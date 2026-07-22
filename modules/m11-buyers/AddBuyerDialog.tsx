@@ -1,9 +1,9 @@
 "use client";
 
-// m10-users — "Add user" dialog. Creates a member (non-login) via addMember and
-// assigns them to a team lead. No password / auth account — members only ever
-// submit subscription requests. Astryx inputs are controlled, so values are
-// mirrored into hidden inputs for the FormData the action reads.
+// m11-buyers — "Add buyer" dialog. Creates a GoTrue account + profile via
+// addBuyer. The password is temporary; the buyer can change it after their
+// first sign-in. Astryx inputs are controlled, so values are mirrored into
+// hidden inputs for the FormData the action reads.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@astryxdesign/core/Button";
@@ -13,43 +13,26 @@ import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
-import type { LeadOption } from "@/lib/types";
-import { addMember } from "./actions";
-import { LeadPicker } from "./LeadPicker";
+import { addBuyer } from "./actions";
 
-export function AddUserDialog({
-  leads,
-  initialName = "",
-  initialEmail = "",
-  triggerLabel = "Add user",
-  triggerVariant = "primary",
-  triggerSize,
-}: {
-  leads: LeadOption[];
-  /** Prefill the form — used by the "Add as member" flow for a known requester. */
-  initialName?: string;
-  initialEmail?: string;
-  triggerLabel?: string;
-  triggerVariant?: "primary" | "secondary" | "ghost";
-  triggerSize?: "sm" | "md";
-}) {
+export function AddBuyerDialog() {
   const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState(initialName);
-  const [email, setEmail] = useState(initialEmail);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
-
-  const hasLeads = leads.length > 0;
 
   function onSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
       try {
-        await addMember(formData);
+        await addBuyer(formData);
         setOpen(false);
-        setFullName(initialName);
-        setEmail(initialEmail);
+        setFullName("");
+        setEmail("");
+        setPassword("");
         router.refresh();
       } catch (e) {
         setError(
@@ -59,36 +42,24 @@ export function AddUserDialog({
     });
   }
 
-  if (!hasLeads) {
-    return (
-      <Button
-        type="button"
-        label={triggerLabel}
-        size={triggerSize}
-        isDisabled
-        tooltip="Add a team lead first."
-      />
-    );
-  }
-
   return (
     <>
       <Button
         type="button"
-        variant={triggerVariant}
-        label={triggerLabel}
-        size={triggerSize}
+        variant="primary"
+        label="Add buyer"
         onClick={() => setOpen(true)}
       />
       <Dialog isOpen={open} onOpenChange={setOpen} purpose="form" width={460}>
         <form action={onSubmit}>
           <input type="hidden" name="full_name" value={fullName} />
           <input type="hidden" name="email" value={email} />
+          <input type="hidden" name="password" value={password} />
           <Layout
             header={
               <DialogHeader
-                title="Add user"
-                subtitle="Users can’t sign in — they only submit subscription requests. Assign one to a team lead, whose team then handles their requests."
+                title="Add buyer"
+                subtitle="Creates a login for a buyer. Buyers see the approved-request queue and purchase subscriptions. The password is temporary — they can change it after signing in."
                 onOpenChange={setOpen}
               />
             }
@@ -109,12 +80,14 @@ export function AddUserDialog({
                     isRequired
                     placeholder="jane@company.com"
                   />
-                  <VStack gap={1}>
-                    <Text type="label" as="label">
-                      Team lead
-                    </Text>
-                    <LeadPicker leads={leads} name="lead_id" required />
-                  </VStack>
+                  <TextInput
+                    label="Temporary password"
+                    type="password"
+                    value={password}
+                    onChange={setPassword}
+                    isRequired
+                    description="At least 8 characters."
+                  />
                   {error && (
                     <Text type="supporting" className="text-error">
                       {error}
@@ -136,7 +109,7 @@ export function AddUserDialog({
                   <Button
                     type="submit"
                     variant="primary"
-                    label={pending ? "Adding…" : "Add user"}
+                    label={pending ? "Adding…" : "Add buyer"}
                     isLoading={pending}
                   />
                 </HStack>

@@ -14,10 +14,14 @@ import {
   TableRow,
 } from "@astryxdesign/core/Table";
 import type { CheckStatus, SubscriptionOverviewRow } from "@/lib/types";
-import { cancelSubscription, reactivateSubscription } from "./actions";
+import { requestCancellation } from "@/modules/m13-cancellations/actions";
+import { reactivateSubscription } from "./actions";
 
 interface SubscriptionTableProps {
   rows: SubscriptionOverviewRow[];
+  /** Show row lifecycle actions (edit / request-cancellation / reactivate).
+   *  Buyers viewing their purchases get a read-only table. */
+  canManage?: boolean;
 }
 
 function StatusBadge({ status }: { status: SubscriptionOverviewRow["status"] }) {
@@ -60,7 +64,10 @@ function cardLabel(row: SubscriptionOverviewRow): string {
   return row.card_last4 ? `${name} ••${row.card_last4}` : name;
 }
 
-export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
+export async function SubscriptionTable({
+  rows,
+  canManage = true,
+}: SubscriptionTableProps) {
   if (rows.length === 0) {
     return (
       <Card padding={8}>
@@ -116,7 +123,12 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
             </TableCell>
             <TableCell>{cardLabel(row)}</TableCell>
             <TableCell>
-              <StatusBadge status={row.status} />
+              <span className="inline-flex items-center gap-1">
+                <StatusBadge status={row.status} />
+                {row.status === "active" && row.cancellation_pending && (
+                  <Badge variant="warning" label="pending cancellation" />
+                )}
+              </span>
             </TableCell>
             <TableCell>
               <CheckBadge
@@ -125,34 +137,48 @@ export async function SubscriptionTable({ rows }: SubscriptionTableProps) {
               />
             </TableCell>
             <TableCell className="text-right">
-              <div className="inline-flex items-center gap-1">
-                <LinkButton
-                  href={`/subscriptions/new?edit=${row.id}`}
-                  label="Edit"
-                  variant="ghost"
-                  size="sm"
-                />
-                {row.status === "active" ? (
-                  <form action={cancelSubscription.bind(null, row.id)}>
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      label="Cancel"
-                      className="text-error"
-                    />
-                  </form>
-                ) : (
-                  <form action={reactivateSubscription.bind(null, row.id)}>
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="sm"
-                      label="Reactivate"
-                    />
-                  </form>
-                )}
-              </div>
+              {canManage ? (
+                <div className="inline-flex items-center gap-1">
+                  <LinkButton
+                    href={`/subscriptions/new?edit=${row.id}`}
+                    label="Edit"
+                    variant="ghost"
+                    size="sm"
+                  />
+                  {row.status === "active" ? (
+                    row.cancellation_pending ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        label="Cancellation pending"
+                        isDisabled
+                      />
+                    ) : (
+                      <form action={requestCancellation.bind(null, row.id)}>
+                        <Button
+                          type="submit"
+                          variant="ghost"
+                          size="sm"
+                          label="Request cancellation"
+                          className="text-error"
+                        />
+                      </form>
+                    )
+                  ) : (
+                    <form action={reactivateSubscription.bind(null, row.id)}>
+                      <Button
+                        type="submit"
+                        variant="ghost"
+                        size="sm"
+                        label="Reactivate"
+                      />
+                    </form>
+                  )}
+                </div>
+              ) : (
+                <span className="text-secondary">—</span>
+              )}
             </TableCell>
           </TableRow>
         ))}

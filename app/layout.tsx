@@ -10,19 +10,30 @@ export const metadata: Metadata = {
   description: "In-house subscription tracking verified against Mercury",
 };
 
-// Shared pages both roles see (team leads get a team-scoped view of each).
+// Shared pages admins + team leads see (team leads get a team-scoped view).
 const baseNav: NavLink[] = [
   { href: "/", label: "Dashboard" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/requests", label: "Requests" },
+  { href: "/cancellations", label: "Cancellations" },
   { href: "/review", label: "Review" },
 ];
+// The purchasing queue — admins and buyers.
+const buyNav: NavLink = { href: "/buy", label: "To buy" };
 // Admin-only pages.
 const adminNav: NavLink[] = [
   { href: "/teams", label: "Teams" },
   { href: "/users", label: "Users" },
+  { href: "/buyers", label: "Buyers" },
   { href: "/cards", label: "Cards" },
   { href: "/analytics", label: "Analytics" },
+  { href: "/email-templates", label: "Email templates" },
+];
+// A buyer's whole world: their to-buy queue and the subscriptions they bought.
+const buyerNav: NavLink[] = [
+  buyNav,
+  { href: "/cancellations", label: "Cancellations" },
+  { href: "/subscriptions", label: "My purchases" },
 ];
 
 export default async function RootLayout({
@@ -31,11 +42,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSessionUser();
-  const items = session
-    ? session.role === "admin"
-      ? [...baseNav, ...adminNav]
-      : baseNav
-    : [];
+  const items = !session
+    ? []
+    : session.role === "admin"
+      ? [...baseNav, buyNav, ...adminNav]
+      : session.role === "buyer"
+        ? buyerNav
+        : baseNav; // team_lead
 
   return (
     <html lang="en" suppressHydrationWarning>

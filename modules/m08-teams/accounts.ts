@@ -90,6 +90,48 @@ export async function createTeamLeadAccount({
 }
 
 /**
+ * Create a buyer auth account (role='buyer', no team — buyers are company-wide
+ * purchasers). Returns the new user's id. Mirrors createTeamLeadAccount.
+ */
+export async function createBuyerAccount({
+  email,
+  fullName,
+  password,
+}: Omit<CreateAccountArgs, "teamId">): Promise<string> {
+  const { url, key } = adminBase();
+  const res = await fetch(url, {
+    method: "POST",
+    headers: adminHeaders(key),
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      app_metadata: { role: "buyer" },
+      user_metadata: { full_name: fullName },
+    }),
+  });
+
+  if (!res.ok) {
+    const message = await readError(res);
+    if (res.status === 422 || /already been registered/i.test(message)) {
+      throw new Error("A user with this email already exists.");
+    }
+    throw new Error(`Failed to create account: ${message}`);
+  }
+
+  const user = (await res.json()) as { id?: string };
+  if (!user.id) {
+    throw new Error("Failed to create account: no user id returned.");
+  }
+  return user.id;
+}
+
+/** Delete any auth account by id. 404 is treated as success (idempotent). */
+export async function deleteAuthAccount(userId: string): Promise<void> {
+  return deleteTeamLeadAccount(userId);
+}
+
+/**
  * Update a team lead's app_metadata team assignment (Supabase merges
  * app_metadata, so re-sending role alongside team_id is safe). Pass teamId
  * null to detach the lead from any team.

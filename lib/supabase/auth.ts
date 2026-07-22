@@ -52,7 +52,8 @@ export interface SessionUser {
 }
 
 function resolveRole(email: string, metaRole: unknown): UserRole | null {
-  if (metaRole === "admin" || metaRole === "team_lead") return metaRole;
+  if (metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer")
+    return metaRole;
   if (adminEmails().includes(email.toLowerCase())) return "admin";
   return null;
 }
@@ -93,5 +94,16 @@ export async function requireAdmin(): Promise<SessionUser> {
   const session = await getSessionUser();
   if (!session) redirect("/login");
   if (session.role !== "admin") redirect("/");
+  return session;
+}
+
+/**
+ * Guard for pages the purchasing flow owns (approved queue, create-subscription
+ * form): admins and buyers only. Team leads are bounced to their dashboard.
+ */
+export async function requireBuyerOrAdmin(): Promise<SessionUser> {
+  const session = await getSessionUser();
+  if (!session) redirect("/login");
+  if (session.role !== "admin" && session.role !== "buyer") redirect("/");
   return session;
 }
