@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { sendTemplateEmail } from "@/lib/email/send";
+import { buyerEmails, profileEmail, teamName } from "@/lib/email/recipients";
 
 export interface CancelState {
   ok: boolean;
@@ -32,6 +33,26 @@ function text(formData: FormData, key: string): string | null {
 
 function assertUuid(id: string, what: string): void {
   if (!UUID_RE.test(id)) throw new Error(`Invalid ${what} id.`);
+}
+
+/** A pending cancellation was created — alert every buyer to finalize it. */
+async function notifyBuyersPending(input: {
+  platform: string | null;
+  product: string | null;
+  teamId: string | null;
+  requester: string;
+  reason: string | null;
+}): Promise<void> {
+  const buyers = await buyerEmails();
+  if (buyers.length === 0) return;
+  const name = await teamName(input.teamId);
+  await sendTemplateEmail("cancellation_pending_buyer", buyers, {
+    platform: input.platform ?? "",
+    product: input.product ?? "",
+    team: name ?? "Unassigned",
+    requester: input.requester,
+    reason: input.reason ?? "—",
+  });
 }
 
 // ── Public: submit a cancellation request ──────────────────────────────────
@@ -122,11 +143,13 @@ export async function submitCancellation(
     return fail("Could not submit right now. Please try again.");
   }
 
-  await sendTemplateEmail("cancellation_received", requesterEmail, {
-    requester_name: requesterName,
+  // Notify buyers there's a pending cancellation to finalize.
+  await notifyBuyersPending({
     platform,
-    product: product ?? "",
-    reason: reason ?? "—",
+    product,
+    teamId,
+    requester: `${requesterName} (${requesterEmail})`,
+    reason,
   });
 
   revalidatePath("/cancellations");
@@ -190,6 +213,15 @@ export async function requestCancellation(subscriptionId: string): Promise<void>
     throw new Error(`Failed to request cancellation: ${error.message}`);
   }
 
+  // Notify buyers there's a pending cancellation to finalize (best-effort).
+  await notifyBuyersPending({
+    platform: sub.platform,
+    product: sub.product,
+    teamId: sub.team_id,
+    requester: session.email,
+    reason: null,
+  });
+
   revalidatePath("/subscriptions");
   revalidatePath("/cancellations");
 }
@@ -209,7 +241,7 @@ export async function completeCancellation(cancellationId: string): Promise<void
   const { data: cr, error: loadError } = await supabase
     .from("cancellation_requests")
     .select(
-      "id, status, subscription_id, requester_name, requester_email, platform, product",
+      "id, status, subscription_id, requester_name, requester_email, platform, product, requested_by",
     )
     .eq("id", cancellationId)
     .maybeSingle();
@@ -248,8 +280,12 @@ export async function completeCancellation(cancellationId: string): Promise<void
     }
   }
 
-  if (cr.requester_email) {
-    await sendTemplateEmail("cancellation_done", cr.requester_email, {
+  // Tell whoever created the request (public requester, else the internal
+  // team lead / admin who flagged the row) that it's done (best-effort).
+  const creatorEmail =
+    cr.requester_email ?? (await profileEmail(cr.requested_by));
+  if (creatorEmail) {
+    await sendTemplateEmail("cancellation_done", creatorEmail, {
       requester_name: cr.requester_name ?? "there",
       platform: cr.platform ?? "",
       product: cr.product ?? "",

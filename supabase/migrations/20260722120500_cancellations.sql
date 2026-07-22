@@ -112,17 +112,5 @@ left join lateral (
   limit 1
 ) lc on true;
 
--- Seed the two cancellation email templates (email_templates created in #10).
-insert into public.email_templates (key, name, subject, html) values
-(
-  'cancellation_received',
-  'Cancellation received → requester',
-  'We received your cancellation request',
-  '<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5"><h2 style="margin:0 0 12px">Thanks, {{requester_name}}</h2><p>We received your request to cancel <strong>{{platform}} {{product}}</strong>. It''s now pending cancellation — we''ll email you once it''s done.</p><p><strong>Reason:</strong> {{reason}}</p></div>'
-),
-(
-  'cancellation_done',
-  'Cancellation completed → requester',
-  'Your subscription has been cancelled',
-  '<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5"><h2 style="margin:0 0 12px">Done, {{requester_name}}</h2><p>Your subscription to <strong>{{platform}} {{product}}</strong> has been cancelled.</p></div>'
-);
+-- Transactional emails (cancellation + all others) live in code
+-- (lib/email/defaults.ts) — there is no email_templates table.

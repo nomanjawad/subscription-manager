@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/auth";
 import type { BillingCycle, RequestStatus } from "@/lib/types";
+import { profileEmail } from "@/lib/email/recipients";
 import { assertCanActOnRequestTeam, assertCanPurchase } from "./authz";
 import {
   notifyPurchased,
@@ -96,6 +97,13 @@ export async function submitRequest(
   const reason = text(formData, "reason");
   if (reason !== null && reason.length > LONG_MAX) {
     return fail(`Reason must be at most ${LONG_MAX} characters.`);
+  }
+
+  // Optional: login details for the platform, so the buyer can complete the
+  // purchase. Sensitive — only ever shown to admins/buyers in the purchase flow.
+  const credentials = text(formData, "credentials");
+  if (credentials !== null && credentials.length > LONG_MAX) {
+    return fail(`Credentials must be at most ${LONG_MAX} characters.`);
   }
 
   let amountEstimate: number | null = null;
@@ -191,6 +199,7 @@ export async function submitRequest(
     reason,
     amount_estimate: amountEstimate,
     billing_cycle: billingCycle,
+    credentials,
     team_id: teamId,
     ...(autoApprove
       ? {
@@ -215,6 +224,7 @@ export async function submitRequest(
       reason,
       amount_estimate: amountEstimate,
       billing_cycle: billingCycle,
+      credentials,
       team_id: teamId,
     },
     autoApprove,
@@ -241,7 +251,7 @@ async function reviewRequest(
   const { data: existing, error: loadError } = await supabase
     .from("subscription_requests")
     .select(
-      "requester_name, requester_email, platform, product, reason, amount_estimate, billing_cycle, team_id",
+      "requester_name, requester_email, platform, product, reason, amount_estimate, billing_cycle, credentials, team_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -260,6 +270,7 @@ async function reviewRequest(
       status,
       review_note: cleanedNote,
       reviewed_at: new Date().toISOString(),
+      reviewed_by: session.id, // so the purchase email can reach the approver
     })
     .eq("id", id)
     .eq("status", "requested") // only reviewable from 'requested'
@@ -315,7 +326,7 @@ export async function purchaseRequest(
   const { data: request, error: fetchError } = await supabase
     .from("subscription_requests")
     .select(
-      "id, status, platform, product, reason, amount_estimate, billing_cycle, requester_name, requester_email, reviewed_at, team_id",
+      "id, status, platform, product, reason, amount_estimate, billing_cycle, credentials, requester_name, requester_email, reviewed_at, reviewed_by, team_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -428,11 +439,13 @@ export async function purchaseRequest(
     );
   }
 
-  // Tell the requester their subscription is live (best-effort).
+  // Tell the requester + the approver their subscription is live (best-effort).
+  const approverEmail = await profileEmail(request.reviewed_by);
   await notifyPurchased(request as unknown as NotifiableRequest, {
     amount: Math.round(amount * 100) / 100,
     currency,
     nextRenewalDate,
+    approverEmail,
   });
 
   revalidatePath("/requests");

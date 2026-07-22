@@ -54,6 +54,7 @@ function RequestFormInner({
   const [amountEstimate, setAmountEstimate] = useState<number | null>(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [reason, setReason] = useState("");
+  const [credentials, setCredentials] = useState("");
 
   if (state.ok) {
     return (
@@ -100,6 +101,7 @@ function RequestFormInner({
         />
         <input type="hidden" name="billing_cycle" value={billingCycle} />
         <input type="hidden" name="reason" value={reason} />
+        <input type="hidden" name="credentials" value={credentials} />
 
         <VStack gap={4} paddingBlock={4}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -186,6 +188,17 @@ function RequestFormInner({
                 rows={3}
                 maxLength={2000}
                 placeholder="A sentence or two helps us review faster."
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <TextArea
+                label="Platform login details (optional)"
+                value={credentials}
+                onChange={setCredentials}
+                rows={2}
+                maxLength={2000}
+                placeholder="e.g. the account username/email to use, or how to access it — only the admin and buyer see this."
               />
             </div>
 

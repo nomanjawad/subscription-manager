@@ -1,12 +1,15 @@
-// lib/email — SMTP transport. Provider-agnostic: reads generic SMTP_* env vars
-// so any host works (SiteGround, SES, Workspace, self-hosted). Server-only.
+// lib/email — SMTP transport. Config comes from the smtp_settings table (edited
+// by an admin on the Users page) and falls back to SMTP_* env vars for anything
+// left blank. Provider-agnostic — any host works (SkyTech BPO webmail, SES,
+// Workspace, self-hosted). Server-only (service client + nodemailer).
 //
-//   SMTP_HOST   e.g. mail.cuebites.com
-//   SMTP_PORT   465 (SSL) or 587 (STARTTLS)
-//   SMTP_USER   full mailbox address
-//   SMTP_PASS   mailbox password
-//   EMAIL_FROM  From: address, e.g. "Subscriptions <notifications@cuebites.com>"
+//   host        e.g. mail.skytechbpo.com
+//   port        465 (implicit TLS) or 587 (STARTTLS)
+//   username    full mailbox address, e.g. notifications@skytechbpo.com
+//   password    mailbox password
+//   from_email  From: address, e.g. "Subscriptions <notifications@skytechbpo.com>"
 import nodemailer, { type Transporter } from "nodemailer";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export interface SmtpConfig {
   host: string;
@@ -16,30 +19,67 @@ export interface SmtpConfig {
   from: string;
 }
 
-/** Read + validate SMTP env. Returns null when not configured (so sends no-op). */
-export function smtpConfig(): SmtpConfig | null {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.EMAIL_FROM || user;
+/** Read the admin-editable smtp_settings row, or null if none/unreadable. */
+async function dbSettings(): Promise<Partial<SmtpConfig> | null> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("smtp_settings")
+      .select("host, port, username, password, from_email")
+      .maybeSingle();
+    if (error || !data) return null;
+    return {
+      host: data.host ?? undefined,
+      port: data.port ?? undefined,
+      user: data.username ?? undefined,
+      pass: data.password ?? undefined,
+      from: data.from_email ?? undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the effective SMTP config: DB settings win, env fills the gaps.
+ * Returns null when the essentials (host/port/user/pass) aren't all present.
+ */
+export async function smtpConfig(): Promise<SmtpConfig | null> {
+  const db = (await dbSettings()) ?? {};
+  const host = db.host || process.env.SMTP_HOST || "";
+  const portRaw = db.port ?? Number(process.env.SMTP_PORT);
+  const port = Number(portRaw);
+  const user = db.user || process.env.SMTP_USER || "";
+  const pass = db.pass || process.env.SMTP_PASS || "";
+  const from = db.from || process.env.EMAIL_FROM || user;
   if (!host || !port || !user || !pass || !from) return null;
   return { host, port, user, pass, from };
 }
 
-let cached: Transporter | null = null;
+let cached: { key: string; transport: Transporter } | null = null;
 
-/** Shared nodemailer transport, or null when SMTP isn't configured. */
-export function getTransport(): { transport: Transporter; from: string } | null {
-  const config = smtpConfig();
+/**
+ * Shared nodemailer transport, or null when SMTP isn't configured. Cached by a
+ * fingerprint of the config so editing the settings rebuilds the transport.
+ */
+export async function getTransport(): Promise<{
+  transport: Transporter;
+  from: string;
+} | null> {
+  const config = await smtpConfig();
   if (!config) return null;
-  if (!cached) {
-    cached = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.port === 465, // 465 = implicit TLS; 587 = STARTTLS
-      auth: { user: config.user, pass: config.pass },
-    });
+
+  const key = `${config.host}:${config.port}:${config.user}`;
+  if (!cached || cached.key !== key) {
+    cached = {
+      key,
+      transport: nodemailer.createTransport({
+        host: config.host,
+        port: config.port,
+        secure: config.port === 465, // 465 = implicit TLS; 587 = STARTTLS
+        auth: { user: config.user, pass: config.pass },
+      }),
+    };
   }
-  return { transport: cached, from: config.from };
+  return { transport: cached.transport, from: config.from };
 }

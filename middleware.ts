@@ -19,7 +19,6 @@ const ADMIN_ONLY_PREFIXES = [
   "/buyers",
   "/cards",
   "/analytics",
-  "/email-templates",
 ];
 
 function isPublic(pathname: string): boolean {

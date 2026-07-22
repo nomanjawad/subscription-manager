@@ -1,35 +1,10 @@
-// lib/email — the send layer. Loads a template (DB → fallback), fills merge
-// tags, and sends via SMTP. Every send is best-effort: failures are logged and
-// swallowed so a request action never fails just because email is down or SMTP
-// isn't configured yet. Server-only (service client + nodemailer).
-import { createServiceClient } from "@/lib/supabase/server";
+// lib/email — the send layer. Templates live in code (defaults.ts); this fills
+// their merge tags and sends via SMTP. Every send is best-effort: failures are
+// logged and swallowed so a user action never fails just because email is down
+// or SMTP isn't configured yet. Server-only (nodemailer + service client).
 import { DEFAULT_TEMPLATES, type EmailTemplateKey } from "./defaults";
 import { mergeHtml, mergeText, type MergeVars } from "./merge";
 import { getTransport } from "./smtp";
-
-interface LoadedTemplate {
-  subject: string;
-  html: string;
-}
-
-/** Load a template from the DB, falling back to the built-in default. */
-async function loadTemplate(key: EmailTemplateKey): Promise<LoadedTemplate> {
-  try {
-    const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from("email_templates")
-      .select("subject, html")
-      .eq("key", key)
-      .maybeSingle();
-    if (!error && data) {
-      return { subject: data.subject as string, html: data.html as string };
-    }
-  } catch {
-    // fall through to the built-in default
-  }
-  const fallback = DEFAULT_TEMPLATES[key];
-  return { subject: fallback.subject, html: fallback.html };
-}
 
 /**
  * Send one templated email to one or more recipients. Best-effort: returns
@@ -41,28 +16,45 @@ export async function sendTemplateEmail(
   to: string | string[],
   vars: MergeVars,
 ): Promise<boolean> {
+  const template = DEFAULT_TEMPLATES[key];
+  return sendRawEmail(
+    to,
+    mergeText(template.subject, vars),
+    mergeHtml(template.html, vars),
+  );
+}
+
+/**
+ * Send raw subject + HTML (already assembled — no merge). Used by the monthly
+ * report, whose body is generated HTML that must NOT be merge-escaped. Same
+ * best-effort contract as sendTemplateEmail.
+ */
+export async function sendRawEmail(
+  to: string | string[],
+  subject: string,
+  html: string,
+): Promise<boolean> {
   const recipients = (Array.isArray(to) ? to : [to])
     .map((e) => e.trim())
     .filter(Boolean);
   if (recipients.length === 0) return false;
 
-  const wired = getTransport();
+  const wired = await getTransport();
   if (!wired) {
-    console.info(`[email] SMTP not configured — skipping "${key}".`);
+    console.info("[email] SMTP not configured — skipping send.");
     return false;
   }
 
   try {
-    const template = await loadTemplate(key);
     await wired.transport.sendMail({
       from: wired.from,
       to: recipients,
-      subject: mergeText(template.subject, vars),
-      html: mergeHtml(template.html, vars),
+      subject,
+      html,
     });
     return true;
   } catch (err) {
-    console.error(`[email] failed to send "${key}":`, err);
+    console.error("[email] failed to send:", err);
     return false;
   }
 }

@@ -98,15 +98,15 @@ export interface BuyerRow {
   created_at: string;
 }
 
-/** An editable transactional email template (email_templates table). `design`
- *  is the Unlayer editor JSON; `html` is what actually gets sent. */
-export interface EmailTemplateRow {
-  key: string;
-  name: string;
-  subject: string;
-  html: string;
-  design: unknown | null;
-  updated_at: string;
+/** Outbound SMTP config the admin edits in-app (smtp_settings singleton).
+ *  lib/email/smtp.ts reads this first, falling back to SMTP_* env vars. */
+export interface SmtpSettingsRow {
+  host: string | null;
+  port: number | null;
+  username: string | null;
+  password: string | null;
+  from_email: string | null;
+  updated_at: string | null;
 }
 
 export interface CardRow {
@@ -157,11 +157,13 @@ export interface SubscriptionRequestRow {
   reason: string | null;
   amount_estimate: number | null;
   billing_cycle: BillingCycle;
+  credentials: string | null;
   tag: string | null;
   team_id: string | null;
   status: RequestStatus;
   review_note: string | null;
   reviewed_at: string | null;
+  reviewed_by: string | null;
   purchased_subscription_id: string | null;
   created_at: string;
 }
