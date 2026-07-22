@@ -26,6 +26,7 @@ const adminNav: NavLink[] = [
   { href: "/users", label: "Users" },
   { href: "/buyers", label: "Buyers" },
   { href: "/cards", label: "Cards" },
+  { href: "/capture", label: "Capture" },
   { href: "/analytics", label: "Analytics" },
   { href: "/settings", label: "Settings" },
 ];

@@ -144,6 +144,7 @@ export interface SubscriptionRow {
   tag: string | null;
   team_id: string | null;
   purchased_by: string | null;
+  source_transaction_id: string | null;
   created_at: string;
   updated_at: string;
 }

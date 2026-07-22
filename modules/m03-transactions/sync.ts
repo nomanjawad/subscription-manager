@@ -13,7 +13,7 @@ function defaultStart(): string {
 }
 
 /** Sandbox payloads carry the card id under either `id` or `cardId`. */
-function extractCardId(tx: MercuryTransaction): string | null {
+export function extractCardId(tx: MercuryTransaction): string | null {
   return (
     tx.details?.creditCardInfo?.id ??
     tx.details?.creditCardInfo?.cardId ??
@@ -23,12 +23,12 @@ function extractCardId(tx: MercuryTransaction): string | null {
   );
 }
 
-export async function syncTransactions(opts?: {
-  start?: string;
-}): Promise<{ upserted: number }> {
-  const start = opts?.start ?? defaultStart();
-  const transactions = await listAllTransactions({ start });
-
+/** Upsert a batch of Mercury transactions into the `transactions` table (keyed
+ *  on mercury_transaction_id). Shared by the periodic sync and the Capture
+ *  tool. Returns how many rows were written. */
+export async function upsertTransactions(
+  transactions: MercuryTransaction[],
+): Promise<{ upserted: number }> {
   if (transactions.length === 0) {
     return { upserted: 0 };
   }
@@ -69,4 +69,12 @@ export async function syncTransactions(opts?: {
   }
 
   return { upserted: rows.length };
+}
+
+export async function syncTransactions(opts?: {
+  start?: string;
+}): Promise<{ upserted: number }> {
+  const start = opts?.start ?? defaultStart();
+  const transactions = await listAllTransactions({ start });
+  return upsertTransactions(transactions);
 }

@@ -18,6 +18,7 @@ const ADMIN_ONLY_PREFIXES = [
   "/users",
   "/buyers",
   "/cards",
+  "/capture",
   "/analytics",
   "/settings",
 ];
@@ -66,7 +67,7 @@ function isAllowed(pathname: string, role: Role): boolean {
   return !inBuyQueue && !isCreateForm;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
