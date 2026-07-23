@@ -2,7 +2,6 @@
 // APPROVED request company-wide (no team scope — buyers are central purchasers)
 // with the PurchaseDialog that converts each into a real subscription, stamped
 // with the buyer's name. Reused by /buy.
-import { Badge } from "@astryxdesign/core/Badge";
 import { Card } from "@astryxdesign/core/Card";
 import { Text } from "@astryxdesign/core/Text";
 import {
@@ -49,14 +48,13 @@ export async function BuyQueue() {
 
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Requester</TableHeaderCell>
             <TableHeaderCell>Team</TableHeaderCell>
             <TableHeaderCell>Platform</TableHeaderCell>
-            <TableHeaderCell>Est. amount</TableHeaderCell>
-            <TableHeaderCell>Cycle</TableHeaderCell>
+            <TableHeaderCell className="text-right">Est. amount</TableHeaderCell>
             <TableHeaderCell>Approved</TableHeaderCell>
             <TableHeaderCell className="text-right">Actions</TableHeaderCell>
           </TableRow>
@@ -85,11 +83,12 @@ export async function BuyQueue() {
                   <div className="text-xs text-secondary">{row.product}</div>
                 )}
               </TableCell>
-              <TableCell className="whitespace-nowrap">
+              <TableCell className="whitespace-nowrap text-right tabular-nums">
                 {fmtEstimate(row)}
-              </TableCell>
-              <TableCell>
-                <Badge variant="neutral" label={row.billing_cycle} />
+                <span className="text-xs text-secondary">
+                  {" "}
+                  / {row.billing_cycle === "monthly" ? "mo" : "yr"}
+                </span>
               </TableCell>
               <TableCell className="whitespace-nowrap">
                 {fmtDate(row.reviewed_at)}

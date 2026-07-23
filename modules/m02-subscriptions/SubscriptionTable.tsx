@@ -1,10 +1,12 @@
 // m02-subscriptions — async server component rendering the (already DB-filtered)
-// subscription rows. Row actions post straight to the lifecycle server actions.
+// subscription rows. Related fields are grouped to keep the table readable: the
+// tag rides with the platform, the last renewal check sits under the status, and
+// row actions collapse into a compact ⋯ menu (SubscriptionRowActions).
 import { Badge } from "@astryxdesign/core/Badge";
-import { Button } from "@astryxdesign/core/Button";
 import { Card } from "@astryxdesign/core/Card";
-import { LinkButton } from "@/components/LinkButton";
 import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
+import { HStack } from "@astryxdesign/core/HStack";
 import {
   Table,
   TableBody,
@@ -14,8 +16,7 @@ import {
   TableRow,
 } from "@astryxdesign/core/Table";
 import type { CheckStatus, SubscriptionOverviewRow } from "@/lib/types";
-import { requestCancellation } from "@/modules/m13-cancellations/actions";
-import { reactivateSubscription } from "./actions";
+import { SubscriptionRowActions } from "./SubscriptionRowActions";
 
 interface SubscriptionTableProps {
   rows: SubscriptionOverviewRow[];
@@ -35,7 +36,9 @@ function StatusBadge({ status }: { status: SubscriptionOverviewRow["status"] }) 
   );
 }
 
-function CheckBadge({
+/** The last renewal-check result, shown as a small badge under the status.
+ *  Returns null when there's been no check yet. */
+function CheckLine({
   status,
   failureReason,
 }: {
@@ -48,15 +51,15 @@ function CheckBadge({
     case "failed":
       return (
         <span title={failureReason ?? undefined}>
-          <Badge variant="error" label="failed" />
+          <Badge variant="error" label="check failed" />
         </span>
       );
     case "needs_review":
       return <Badge variant="warning" label="needs review" />;
     case "pending":
-      return <Badge variant="neutral" label="pending" />;
+      return <Badge variant="neutral" label="check pending" />;
     default:
-      return <span className="text-secondary">—</span>;
+      return null;
   }
 }
 
@@ -83,108 +86,92 @@ export async function SubscriptionTable({
 
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Platform</TableHeaderCell>
             <TableHeaderCell>Team</TableHeaderCell>
-            <TableHeaderCell>Tag</TableHeaderCell>
-            <TableHeaderCell>Amount</TableHeaderCell>
+            <TableHeaderCell className="text-right">Amount</TableHeaderCell>
             <TableHeaderCell>Next renewal</TableHeaderCell>
             <TableHeaderCell>Card</TableHeaderCell>
             <TableHeaderCell>Status</TableHeaderCell>
-            <TableHeaderCell>Last check</TableHeaderCell>
-            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            {canManage ? (
+              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.id}>
-            <TableCell>
-              <div className="font-medium text-primary">{row.platform}</div>
-              {row.product && (
-                <div className="text-xs text-secondary">{row.product}</div>
-              )}
-            </TableCell>
-            <TableCell>{row.team_name ?? "Unassigned"}</TableCell>
-            <TableCell>
-              {row.tag ? (
-                <Badge variant="neutral" label={row.tag} />
-              ) : (
-                <span className="text-secondary">—</span>
-              )}
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {Number(row.amount).toFixed(2)} {row.currency}
-              <span className="text-xs text-secondary">
-                {" "}
-                / {row.billing_cycle === "monthly" ? "mo" : "yr"}
-              </span>
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {row.next_renewal_date}
-            </TableCell>
-            <TableCell>{cardLabel(row)}</TableCell>
-            <TableCell>
-              <span className="inline-flex items-center gap-1">
-                <StatusBadge status={row.status} />
-                {row.status === "active" && row.cancellation_pending && (
-                  <Badge variant="warning" label="pending cancellation" />
+          {rows.map((row) => (
+            <TableRow key={row.id}>
+              {/* Platform + product, with the tag riding alongside the name */}
+              <TableCell>
+                <VStack gap={0.5} align="start">
+                  <HStack gap={1.5} align="center" wrap="wrap">
+                    <span className="font-medium text-primary">
+                      {row.platform}
+                    </span>
+                    {row.tag ? (
+                      <Badge variant="neutral" label={row.tag} />
+                    ) : null}
+                  </HStack>
+                  {row.product ? (
+                    <span className="text-xs text-secondary">{row.product}</span>
+                  ) : null}
+                </VStack>
+              </TableCell>
+
+              <TableCell>
+                {row.team_name ? (
+                  row.team_name
+                ) : (
+                  <span className="text-secondary">Unassigned</span>
                 )}
-              </span>
-            </TableCell>
-            <TableCell>
-              <CheckBadge
-                status={row.last_check_status}
-                failureReason={row.last_check_failure_reason}
-              />
-            </TableCell>
-            <TableCell className="text-right">
-              {canManage ? (
-                <div className="inline-flex items-center gap-1">
-                  <LinkButton
-                    href={`${newBasePath}?edit=${row.id}`}
-                    label="Edit"
-                    variant="ghost"
-                    size="sm"
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap text-right tabular-nums">
+                {Number(row.amount).toFixed(2)} {row.currency}
+                <span className="text-xs text-secondary">
+                  {" "}
+                  / {row.billing_cycle === "monthly" ? "mo" : "yr"}
+                </span>
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap">
+                {row.next_renewal_date}
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap">
+                {cardLabel(row)}
+              </TableCell>
+
+              {/* Status + the latest renewal-check result stacked beneath it */}
+              <TableCell>
+                <VStack gap={1} align="start">
+                  <HStack gap={1} align="center" wrap="wrap">
+                    <StatusBadge status={row.status} />
+                    {row.status === "active" && row.cancellation_pending ? (
+                      <Badge variant="warning" label="cancellation pending" />
+                    ) : null}
+                  </HStack>
+                  <CheckLine
+                    status={row.last_check_status}
+                    failureReason={row.last_check_failure_reason}
                   />
-                  {row.status === "active" ? (
-                    row.cancellation_pending ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        label="Cancellation pending"
-                        isDisabled
-                      />
-                    ) : (
-                      <form action={requestCancellation.bind(null, row.id)}>
-                        <Button
-                          type="submit"
-                          variant="ghost"
-                          size="sm"
-                          label="Request cancellation"
-                          className="text-error"
-                        />
-                      </form>
-                    )
-                  ) : (
-                    <form action={reactivateSubscription.bind(null, row.id)}>
-                      <Button
-                        type="submit"
-                        variant="ghost"
-                        size="sm"
-                        label="Reactivate"
-                      />
-                    </form>
-                  )}
-                </div>
-              ) : (
-                <span className="text-secondary">—</span>
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
+                </VStack>
+              </TableCell>
+
+              {canManage ? (
+                <TableCell className="text-right">
+                  <SubscriptionRowActions
+                    id={row.id}
+                    status={row.status}
+                    cancellationPending={Boolean(row.cancellation_pending)}
+                    editHref={`${newBasePath}?edit=${row.id}`}
+                  />
+                </TableCell>
+              ) : null}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </Card>

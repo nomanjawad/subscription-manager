@@ -20,6 +20,11 @@ export const brandTheme = defineTheme({
     // indigo keeps its presence on the darker cool-gray surfaces.
     "--color-accent": ["#4F46E5", "#7C74F2"],
   },
+  components: {
+    // Uniform breathing room in every table cell across the app.
+    "table-cell": { base: { padding: "12px 16px" } },
+    "table-header-cell": { base: { padding: "12px 16px" } },
+  },
 });
 
 export default brandTheme;

@@ -6,6 +6,7 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Card } from "@astryxdesign/core/Card";
 import { LinkButton } from "@/components/LinkButton";
 import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import {
   Table,
   TableBody,
@@ -49,6 +50,19 @@ function fmtEstimate(row: SubscriptionRequestRow): string {
   return row.amount_estimate === null
     ? "—"
     : Number(row.amount_estimate).toFixed(2);
+}
+
+/** Estimated amount with the billing cycle folded in, e.g. "20.00 / mo". */
+function Estimate({ row }: { row: SubscriptionRequestRow }) {
+  return (
+    <>
+      {fmtEstimate(row)}
+      <span className="text-xs text-secondary">
+        {" "}
+        / {row.billing_cycle === "monthly" ? "mo" : "yr"}
+      </span>
+    </>
+  );
 }
 
 function Requester({ row }: { row: SubscriptionRequestRow }) {
@@ -116,14 +130,13 @@ function RequestedTable({
   }
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Requester</TableHeaderCell>
             <TableHeaderCell>Team</TableHeaderCell>
             <TableHeaderCell>Platform</TableHeaderCell>
-            <TableHeaderCell>Est. amount</TableHeaderCell>
-            <TableHeaderCell>Cycle</TableHeaderCell>
+            <TableHeaderCell className="text-right">Est. amount</TableHeaderCell>
             <TableHeaderCell>Reason</TableHeaderCell>
             <TableHeaderCell>Submitted</TableHeaderCell>
             <TableHeaderCell className="text-right">Actions</TableHeaderCell>
@@ -141,10 +154,9 @@ function RequestedTable({
             <TableCell>
               <PlatformProduct row={row} />
             </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {fmtEstimate(row)}
+            <TableCell className="whitespace-nowrap text-right tabular-nums">
+              <Estimate row={row} />
             </TableCell>
-            <TableCell>{row.billing_cycle}</TableCell>
             <TableCell>
               <Reason reason={row.reason} />
             </TableCell>
@@ -175,14 +187,13 @@ async function PendingTable({
   const cards = await getActiveCards();
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Requester</TableHeaderCell>
             <TableHeaderCell>Team</TableHeaderCell>
             <TableHeaderCell>Platform</TableHeaderCell>
-            <TableHeaderCell>Est. amount</TableHeaderCell>
-            <TableHeaderCell>Cycle</TableHeaderCell>
+            <TableHeaderCell className="text-right">Est. amount</TableHeaderCell>
             <TableHeaderCell>Reason</TableHeaderCell>
             <TableHeaderCell>Approved</TableHeaderCell>
             <TableHeaderCell className="text-right">Actions</TableHeaderCell>
@@ -200,10 +211,9 @@ async function PendingTable({
             <TableCell>
               <PlatformProduct row={row} />
             </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {fmtEstimate(row)}
+            <TableCell className="whitespace-nowrap text-right tabular-nums">
+              <Estimate row={row} />
             </TableCell>
-            <TableCell>{row.billing_cycle}</TableCell>
             <TableCell>
               <Reason reason={row.reason} />
             </TableCell>
@@ -233,7 +243,7 @@ function HistoryTable({
   }
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Requester</TableHeaderCell>
@@ -241,7 +251,6 @@ function HistoryTable({
             <TableHeaderCell>Platform</TableHeaderCell>
             <TableHeaderCell>Status</TableHeaderCell>
             <TableHeaderCell>Review note</TableHeaderCell>
-            <TableHeaderCell>Reviewed</TableHeaderCell>
             <TableHeaderCell>Submitted</TableHeaderCell>
           </TableRow>
         </TableHeader>
@@ -257,14 +266,19 @@ function HistoryTable({
             <TableCell>
               <PlatformProduct row={row} />
             </TableCell>
+            {/* Status + when it was reviewed */}
             <TableCell>
-              <StatusBadge status={row.status} />
+              <VStack gap={1} align="start">
+                <StatusBadge status={row.status} />
+                {row.reviewed_at ? (
+                  <span className="whitespace-nowrap text-xs text-secondary">
+                    {fmtDate(row.reviewed_at)}
+                  </span>
+                ) : null}
+              </VStack>
             </TableCell>
             <TableCell>
               <Reason reason={row.review_note} />
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {fmtDate(row.reviewed_at)}
             </TableCell>
             <TableCell className="whitespace-nowrap">
               {fmtDate(row.created_at)}

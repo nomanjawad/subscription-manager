@@ -4,6 +4,7 @@
 import { Badge } from "@astryxdesign/core/Badge";
 import { Card } from "@astryxdesign/core/Card";
 import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
 import {
   Table,
   TableBody,
@@ -68,7 +69,7 @@ export function CancellationsPanel({
 
   return (
     <Card padding={0} className="overflow-x-auto">
-      <Table density="compact">
+      <Table density="balanced">
         <TableHeader>
           <TableRow isHeaderRow>
             <TableHeaderCell>Subscription</TableHeaderCell>
@@ -76,8 +77,9 @@ export function CancellationsPanel({
             <TableHeaderCell>Team</TableHeaderCell>
             <TableHeaderCell>Reason</TableHeaderCell>
             <TableHeaderCell>Status</TableHeaderCell>
-            <TableHeaderCell>Requested</TableHeaderCell>
-            <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            {canComplete ? (
+              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            ) : null}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -108,23 +110,31 @@ export function CancellationsPanel({
                   <span className="text-secondary">—</span>
                 )}
               </TableCell>
+              {/* Status + when it was requested / when it was cancelled */}
               <TableCell>
-                <StatusBadge status={row.status} />
+                <VStack gap={1} align="start">
+                  <StatusBadge status={row.status} />
+                  {row.status === "pending" ? (
+                    <span className="whitespace-nowrap text-xs text-secondary">
+                      Requested {fmtDate(row.created_at)}
+                    </span>
+                  ) : (
+                    <span className="whitespace-nowrap text-xs text-secondary">
+                      Cancelled {fmtDate(row.cancelled_at)}
+                      {row.cancelled_by_name ? ` · ${row.cancelled_by_name}` : ""}
+                    </span>
+                  )}
+                </VStack>
               </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {fmtDate(row.created_at)}
-              </TableCell>
-              <TableCell className="text-right">
-                {row.status === "pending" && canComplete ? (
-                  <CompleteCancellationButton id={row.id} />
-                ) : row.status === "cancelled" ? (
-                  <span className="whitespace-nowrap text-xs text-secondary">
-                    {row.cancelled_by_name ?? "—"} · {fmtDate(row.cancelled_at)}
-                  </span>
-                ) : (
-                  <span className="text-secondary">—</span>
-                )}
-              </TableCell>
+              {canComplete ? (
+                <TableCell className="text-right">
+                  {row.status === "pending" ? (
+                    <CompleteCancellationButton id={row.id} />
+                  ) : (
+                    <span className="text-secondary">—</span>
+                  )}
+                </TableCell>
+              ) : null}
             </TableRow>
           ))}
         </TableBody>
