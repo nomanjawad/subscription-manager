@@ -1,8 +1,8 @@
 // Thin route — the subscriptions TABLE page. Filters arrive as search params
 // and are applied in the database by getSubscriptions.
 import { Card } from "@astryxdesign/core/Card";
-import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
@@ -42,14 +42,14 @@ export default async function SubscriptionsPage({
   // only ever sees their own team's rows.
   if (session.role === "team_lead" && session.teamId === null) {
     return (
-      <div className="space-y-6">
-        <Heading level={1}>Subscriptions</Heading>
+      <PageBody>
+        <PageHeader title="Subscriptions" />
         <Card padding={5}>
           <Text type="supporting">
             You haven&apos;t been assigned to a team yet — ask an admin.
           </Text>
         </Card>
-      </div>
+      </PageBody>
     );
   }
 
@@ -86,31 +86,28 @@ export default async function SubscriptionsPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <Heading level={1}>{heading}</Heading>
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <FilterBar tags={tags} />
-        {canCreate ? (
-          <div className="flex items-center gap-2">
+    <PageBody>
+      <PageHeader
+        title={heading}
+        subtitle={`${rows.length} subscription${rows.length === 1 ? "" : "s"}`}
+        actions={
+          canCreate ? (
             <LinkButton
               href={newHref}
               variant="primary"
               label="Add subscription"
             />
-          </div>
-        ) : null}
-      </div>
+          ) : undefined
+        }
+      />
+
+      <FilterBar tags={tags} />
 
       <SubscriptionTable
         rows={rows}
         canManage={canManage}
         newBasePath={newHref}
       />
-
-      <Text type="supporting">
-        {rows.length} subscription{rows.length === 1 ? "" : "s"}
-      </Text>
-    </div>
+    </PageBody>
   );
 }

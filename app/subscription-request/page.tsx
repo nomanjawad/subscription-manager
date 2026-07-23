@@ -1,6 +1,6 @@
 // Thin public route — anyone can ask for a subscription here (no login).
-import { Heading } from "@astryxdesign/core/Heading";
-import { Text } from "@astryxdesign/core/Text";
+import { VStack } from "@astryxdesign/core/VStack";
+import { PageHeader } from "@/components/PageHeader";
 import { RequestForm } from "@/modules/m07-requests/RequestForm";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
 
@@ -16,16 +16,12 @@ export default async function RequestPage() {
   const teams = await getTeamsPublic();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="space-y-2">
-        <Heading level={1}>Request a subscription</Heading>
-        <Text type="supporting">
-          Need a tool or service for work? Fill in the form below and the
-          admin team will review your request.
-        </Text>
-      </div>
-
+    <VStack gap={6} maxWidth={672} className="mx-auto w-full">
+      <PageHeader
+        title="Request a subscription"
+        subtitle="Need a tool or service for work? Fill in the form below and the admin team will review your request."
+      />
       <RequestForm teams={teams} />
-    </div>
+    </VStack>
   );
 }

@@ -1,7 +1,7 @@
 // Thin admin route — mounts the m07-requests panel. Middleware guards access.
 import { Card } from "@astryxdesign/core/Card";
-import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
 import { RequestsPanel } from "@/modules/m07-requests/RequestsPanel";
@@ -25,28 +25,34 @@ export default async function RequestsPage({
   if (session.role === "team_lead") {
     if (!session.teamId) {
       return (
-        <div className="space-y-8">
-          <Heading level={1}>Subscription requests</Heading>
+        <PageBody>
+          <PageHeader title="Subscription requests" />
           <Card padding={5}>
             <Text type="supporting">
               You haven&apos;t been assigned to a team yet — ask an admin.
             </Text>
           </Card>
-        </div>
+        </PageBody>
       );
     }
     return (
-      <div className="space-y-8">
-        <Heading level={1}>Subscription requests</Heading>
+      <PageBody>
+        <PageHeader
+          title="Subscription requests"
+          subtitle="Review incoming requests, approve or reject them, and hand approved ones to buyers."
+        />
         <RequestsPanel tab={tab} teamId={session.teamId} basePath={basePath} />
-      </div>
+      </PageBody>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <Heading level={1}>Subscription requests</Heading>
+    <PageBody>
+      <PageHeader
+        title="Subscription requests"
+        subtitle="Review incoming requests, approve or reject them, and hand approved ones to buyers."
+      />
       <RequestsPanel tab={tab} basePath={basePath} />
-    </div>
+    </PageBody>
   );
 }

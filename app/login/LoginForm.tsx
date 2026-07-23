@@ -7,11 +7,13 @@ import { signIn, type SignInState } from "@/lib/auth/actions";
 import { Card } from "@astryxdesign/core/Card";
 import { VStack } from "@astryxdesign/core/VStack";
 import { Heading } from "@astryxdesign/core/Heading";
+import { Icon, type IconType } from "@astryxdesign/core/Icon";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import { Selector } from "@astryxdesign/core/Selector";
 import { Button } from "@astryxdesign/core/Button";
 import { Banner } from "@astryxdesign/core/Banner";
+import { Boxes } from "lucide-react";
 
 const initialState: SignInState = { error: null };
 
@@ -25,9 +27,16 @@ export function LoginForm({ next }: { next: string }) {
     <Card width={380} padding={6}>
       <form action={formAction}>
         <VStack gap={4}>
-          <VStack gap={1}>
-            <Heading level={2}>Subscription Manager</Heading>
-            <Text type="supporting">Sign in to continue.</Text>
+          <VStack gap={2}>
+            <span className="inline-flex size-11 items-center justify-center rounded-xl bg-accent-muted">
+              <Icon icon={Boxes as unknown as IconType} color="accent" size="lg" />
+            </span>
+            <VStack gap={1}>
+              <Heading level={2}>Subscription Manager</Heading>
+              <Text type="supporting">
+                Sign in to manage subscriptions verified against Mercury.
+              </Text>
+            </VStack>
           </VStack>
 
           {state.error ? (

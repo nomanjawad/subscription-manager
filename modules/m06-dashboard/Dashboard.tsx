@@ -5,9 +5,13 @@ import { Badge } from "@astryxdesign/core/Badge";
 import { Banner } from "@astryxdesign/core/Banner";
 import { Card } from "@astryxdesign/core/Card";
 import { Divider } from "@astryxdesign/core/Divider";
+import { Grid } from "@astryxdesign/core/Grid";
 import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
+import { ProgressBar } from "@astryxdesign/core/ProgressBar";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
+import { StatIcon, type StatIconId } from "@/components/StatIcon";
 import {
   Table,
   TableBody,
@@ -74,14 +78,29 @@ const VALUE_TONE: Record<Tone, string> = {
   red: "text-error",
 };
 
+type IconColor = "accent" | "warning" | "error";
+const ICON_TONE: Record<Tone, IconColor> = {
+  default: "accent",
+  amber: "warning",
+  red: "error",
+};
+// Muted background chip behind the icon, tinted to match the tone.
+const ICON_CHIP_TONE: Record<Tone, string> = {
+  default: "bg-accent-muted",
+  amber: "bg-warning-muted",
+  red: "bg-error-muted",
+};
+
 function StatTile({
   label,
   value,
+  icon,
   tone = "default",
   href,
 }: {
   label: string;
   value: string;
+  icon: StatIconId;
   tone?: Tone;
   href?: string;
 }) {
@@ -94,12 +113,19 @@ function StatTile({
           : "h-full"
       }
     >
-      <VStack gap={1}>
-        <Text type="supporting">{label}</Text>
-        <Text size="2xl" weight="semibold" className={VALUE_TONE[tone]}>
-          {value}
-        </Text>
-      </VStack>
+      <HStack gap={3} align="center">
+        <span
+          className={`inline-flex size-10 shrink-0 items-center justify-center rounded-lg ${ICON_CHIP_TONE[tone]}`}
+        >
+          <StatIcon id={icon} color={ICON_TONE[tone]} />
+        </span>
+        <VStack gap={0.5}>
+          <Text type="supporting">{label}</Text>
+          <Text size="2xl" weight="semibold" className={VALUE_TONE[tone]}>
+            {value}
+          </Text>
+        </VStack>
+      </HStack>
     </Card>
   );
   if (href) {
@@ -123,10 +149,10 @@ function SectionCard({
 }) {
   return (
     <Card padding={0} className="h-full">
-      <div className="flex flex-row items-center justify-between gap-3 px-5 py-4">
+      <HStack justify="between" align="center" gap={3} paddingInline={5} paddingBlock={4}>
         <Heading level={3}>{title}</Heading>
         {action}
-      </div>
+      </HStack>
       <Divider />
       {children}
     </Card>
@@ -135,7 +161,11 @@ function SectionCard({
 
 /** Padded content region inside a SectionCard (tables render full-bleed). */
 function Panel({ children }: { children: React.ReactNode }) {
-  return <div className="px-5 py-4">{children}</div>;
+  return (
+    <VStack paddingInline={5} paddingBlock={4} gap={0}>
+      {children}
+    </VStack>
+  );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
@@ -309,31 +339,36 @@ export default async function Dashboard({
       )}
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <Grid columns={{ minWidth: 200, max: 5 }} gap={3}>
         <StatTile
           label="Active subscriptions"
           value={totals ? String(totals.active_subscriptions) : "—"}
+          icon="active"
         />
         <StatTile
           label="Monthly spend"
           value={totals ? money(totals.monthly_spend) : "—"}
+          icon="monthly"
         />
         <StatTile
           label="Yearly spend"
           value={totals ? money(totals.yearly_spend) : "—"}
+          icon="yearly"
         />
         <StatTile
           label="Needs review"
           value={totals ? String(totals.needs_review_count) : "—"}
+          icon="review"
           tone={totals && totals.needs_review_count > 0 ? "amber" : "default"}
           href={`${basePath}/review`}
         />
         <StatTile
           label="Failures last 90 days"
           value={totals ? String(totals.failed_count) : "—"}
+          icon="failures"
           tone={totals && totals.failed_count > 0 ? "red" : "default"}
         />
-      </div>
+      </Grid>
 
       {/* Admin-only spending charts (monthly trend, by team, by card). */}
       {isAdmin && <SpendingCharts cardFilter={cardFilter} />}
@@ -417,36 +452,30 @@ export default async function Dashboard({
               <EmptyState>No active subscriptions yet.</EmptyState>
             ) : (
               <Panel>
-                <ul className="space-y-4">
-                  {spend.map((row) => {
-                    const pct =
-                      maxSpend > 0
-                        ? Math.max((row.monthly_amount / maxSpend) * 100, 2)
-                        : 0;
-                    return (
-                      <li key={row.platform}>
-                        <div className="flex items-baseline justify-between gap-3 text-sm">
-                          <span className="truncate font-medium text-primary">
-                            {row.platform}
-                            <span className="ml-1.5 font-normal text-secondary">
-                              · {row.subscription_count}{" "}
-                              {row.subscription_count === 1 ? "sub" : "subs"}
-                            </span>
+                <VStack gap={4}>
+                  {spend.map((row) => (
+                    <VStack key={row.platform} gap={1.5}>
+                      <HStack justify="between" align="end" gap={3}>
+                        <Text size="sm" className="truncate font-medium text-primary">
+                          {row.platform}
+                          <span className="ml-1.5 font-normal text-secondary">
+                            · {row.subscription_count}{" "}
+                            {row.subscription_count === 1 ? "sub" : "subs"}
                           </span>
-                          <span className="shrink-0 tabular-nums text-secondary">
-                            {money(row.monthly_amount)}/mo
-                          </span>
-                        </div>
-                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-accent-muted">
-                          <div
-                            className="h-full rounded-full bg-accent-bg"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </Text>
+                        <Text size="sm" className="shrink-0 tabular-nums text-secondary">
+                          {money(row.monthly_amount)}/mo
+                        </Text>
+                      </HStack>
+                      <ProgressBar
+                        label={`${row.platform} monthly spend`}
+                        isLabelHidden
+                        value={row.monthly_amount}
+                        max={maxSpend || 1}
+                      />
+                    </VStack>
+                  ))}
+                </VStack>
               </Panel>
             )}
           </SectionCard>

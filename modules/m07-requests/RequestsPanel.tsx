@@ -115,7 +115,7 @@ function RequestedTable({
     return <EmptyState message="No open requests — all caught up." />;
   }
   return (
-    <Card padding={0} className="overflow-hidden">
+    <Card padding={0} className="overflow-x-auto">
       <Table density="compact">
         <TableHeader>
           <TableRow isHeaderRow>
@@ -174,7 +174,7 @@ async function PendingTable({
   }
   const cards = await getActiveCards();
   return (
-    <Card padding={0} className="overflow-hidden">
+    <Card padding={0} className="overflow-x-auto">
       <Table density="compact">
         <TableHeader>
           <TableRow isHeaderRow>
@@ -232,7 +232,7 @@ function HistoryTable({
     return <EmptyState message="No purchased or rejected requests yet." />;
   }
   return (
-    <Card padding={0} className="overflow-hidden">
+    <Card padding={0} className="overflow-x-auto">
       <Table density="compact">
         <TableHeader>
           <TableRow isHeaderRow>

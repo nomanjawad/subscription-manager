@@ -1,14 +1,15 @@
 "use client";
 
-// Astryx theme provider. Uses the pre-built neutral theme object (paired with
-// theme.css imported in globals.css) for SSR/first-paint performance, and
+// Astryx theme provider. Uses the pre-built brand theme object (indigo accent
+// over a cool neutral base — see lib/theme/brand.theme.ts) paired with
+// brand-theme.css imported in globals.css, for SSR/first-paint performance, and
 // follows the OS light/dark preference.
 import { Theme } from "@astryxdesign/core/theme";
-import { neutralTheme } from "@astryxdesign/theme-neutral/built";
+import { brandTheme } from "@/lib/theme/brand";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <Theme theme={neutralTheme} mode="system">
+    <Theme theme={brandTheme} mode="system">
       {children}
     </Theme>
   );

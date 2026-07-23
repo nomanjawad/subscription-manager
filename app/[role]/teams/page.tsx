@@ -1,5 +1,5 @@
 // Thin admin route — mounts the m08-teams panel. Admin-only.
-import { Heading } from "@astryxdesign/core/Heading";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { TeamsPanel } from "@/modules/m08-teams/TeamsPanel";
 
@@ -12,9 +12,12 @@ export default async function TeamsPage() {
   await requireAdmin();
 
   return (
-    <div className="space-y-8">
-      <Heading level={1}>Teams</Heading>
+    <PageBody>
+      <PageHeader
+        title="Teams"
+        subtitle="Categories that group subscriptions and requests. Assign team leads and toggle auto-approval."
+      />
       <TeamsPanel />
-    </div>
+    </PageBody>
   );
 }

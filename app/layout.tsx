@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
 import type { UserRole } from "@/lib/types";
 import { Providers } from "./providers";
-import { AppSideNav, type NavLink } from "./AppSideNav";
+import { AppSideNav, type NavLink, type IconId } from "./AppSideNav";
 
 export const metadata: Metadata = {
   title: "Subscription Manager",
@@ -15,36 +15,39 @@ export const metadata: Metadata = {
 interface NavSection {
   section: string; // relative to the role prefix; "" is the role's home
   label: string;
+  icon: IconId;
+  group: string; // titled sidebar section this item lives under
 }
 
-// Sections per role. Keep in sync with lib/roles.ts ALLOWED_SECTIONS.
+// Sections per role. Keep in sync with lib/roles.ts ALLOWED_SECTIONS and the
+// IconId union in app/AppSideNav.tsx.
 const SECTIONS: Record<UserRole, NavSection[]> = {
   admin: [
-    { section: "", label: "Dashboard" },
-    { section: "subscriptions", label: "Subscriptions" },
-    { section: "requests", label: "Requests" },
-    { section: "cancellations", label: "Cancellations" },
-    { section: "review", label: "Review" },
-    { section: "buy", label: "To buy" },
-    { section: "teams", label: "Teams" },
-    { section: "users", label: "Users" },
-    { section: "buyers", label: "Buyers" },
-    { section: "cards", label: "Cards" },
-    { section: "capture", label: "Capture" },
-    { section: "analytics", label: "Analytics" },
-    { section: "settings", label: "Settings" },
+    { section: "", label: "Dashboard", icon: "dashboard", group: "Overview" },
+    { section: "subscriptions", label: "Subscriptions", icon: "subscriptions", group: "Operations" },
+    { section: "requests", label: "Requests", icon: "requests", group: "Operations" },
+    { section: "cancellations", label: "Cancellations", icon: "cancellations", group: "Operations" },
+    { section: "review", label: "Review", icon: "review", group: "Operations" },
+    { section: "buy", label: "To buy", icon: "buy", group: "Operations" },
+    { section: "teams", label: "Teams", icon: "teams", group: "Administration" },
+    { section: "users", label: "Users", icon: "users", group: "Administration" },
+    { section: "buyers", label: "Buyers", icon: "buyers", group: "Administration" },
+    { section: "cards", label: "Cards", icon: "cards", group: "Administration" },
+    { section: "capture", label: "Capture", icon: "capture", group: "Administration" },
+    { section: "analytics", label: "Analytics", icon: "analytics", group: "Administration" },
+    { section: "settings", label: "Settings", icon: "settings", group: "Administration" },
   ],
   team_lead: [
-    { section: "", label: "Dashboard" },
-    { section: "subscriptions", label: "Subscriptions" },
-    { section: "requests", label: "Requests" },
-    { section: "cancellations", label: "Cancellations" },
-    { section: "review", label: "Review" },
+    { section: "", label: "Dashboard", icon: "dashboard", group: "Overview" },
+    { section: "subscriptions", label: "Subscriptions", icon: "subscriptions", group: "Operations" },
+    { section: "requests", label: "Requests", icon: "requests", group: "Operations" },
+    { section: "cancellations", label: "Cancellations", icon: "cancellations", group: "Operations" },
+    { section: "review", label: "Review", icon: "review", group: "Operations" },
   ],
   buyer: [
-    { section: "", label: "To buy" },
-    { section: "subscriptions", label: "My purchases" },
-    { section: "cancellations", label: "Cancellations" },
+    { section: "", label: "To buy", icon: "buy", group: "Workspace" },
+    { section: "subscriptions", label: "My purchases", icon: "purchases", group: "Workspace" },
+    { section: "cancellations", label: "Cancellations", icon: "cancellations", group: "Workspace" },
   ],
 };
 
@@ -58,6 +61,8 @@ export default async function RootLayout({
     ? SECTIONS[session.role].map((s) => ({
         href: rolePath(session.role, s.section),
         label: s.label,
+        icon: s.icon,
+        group: s.group,
       }))
     : [];
 

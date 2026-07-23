@@ -4,9 +4,8 @@ import { BuyView } from "@/modules/m07-requests/BuyView";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
 import { Card } from "@astryxdesign/core/Card";
-import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
-import { VStack } from "@astryxdesign/core/VStack";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +30,15 @@ export default async function RoleHome({
   // Team lead with no team assigned — nothing to aggregate yet.
   if (isTeamLead && !session.teamId) {
     return (
-      <div className="space-y-6">
-        <Heading level={1}>Dashboard</Heading>
+      <PageBody>
+        <PageHeader title="Dashboard" />
         <Card padding={5}>
           <Text type="supporting">
             You haven&apos;t been assigned to a team yet — ask an admin to add
             you to a team.
           </Text>
         </Card>
-      </div>
+      </PageBody>
     );
   }
 
@@ -48,16 +47,13 @@ export default async function RoleHome({
     : "verified against Mercury · sandbox";
 
   return (
-    <div className="space-y-6">
-      <VStack gap={1}>
-        <Heading level={1}>Dashboard</Heading>
-        <Text type="supporting">{subtitle}</Text>
-      </VStack>
+    <PageBody>
+      <PageHeader title="Dashboard" subtitle={subtitle} />
       {isTeamLead ? (
         <Dashboard teamId={session.teamId!} basePath={basePath} />
       ) : (
         <Dashboard isAdmin cardFilter={cardFilter} basePath={basePath} />
       )}
-    </div>
+    </PageBody>
   );
 }

@@ -67,7 +67,7 @@ export function CancellationsPanel({
   }
 
   return (
-    <Card padding={0} className="overflow-hidden">
+    <Card padding={0} className="overflow-x-auto">
       <Table density="compact">
         <TableHeader>
           <TableRow isHeaderRow>

@@ -1,5 +1,5 @@
 // Thin admin route — mounts the m01-cards panel. Admin-only.
-import { Heading } from "@astryxdesign/core/Heading";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { CardsPanel } from "@/modules/m01-cards/CardsPanel";
 
@@ -12,9 +12,12 @@ export default async function CardsPage() {
   await requireAdmin();
 
   return (
-    <div className="space-y-8">
-      <Heading level={1}>Cards</Heading>
+    <PageBody>
+      <PageHeader
+        title="Cards"
+        subtitle="Company cards synced from Mercury. Assign each to a team so its spend is attributed."
+      />
       <CardsPanel />
-    </div>
+    </PageBody>
   );
 }

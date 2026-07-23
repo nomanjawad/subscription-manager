@@ -48,7 +48,7 @@ export function CaptureTable({
         {monthLabel} — {charges.length} charge{charges.length === 1 ? "" : "s"},{" "}
         {mappedCount} mapped, {charges.length - mappedCount} to review.
       </Text>
-      <Card padding={0} className="overflow-hidden">
+      <Card padding={0} className="overflow-x-auto">
         <Table density="compact">
           <TableHeader>
             <TableRow isHeaderRow>

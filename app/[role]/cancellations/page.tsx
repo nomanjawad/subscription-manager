@@ -3,8 +3,9 @@
 //   team_lead — their team's cancellations (read-only)
 //   buyer     — the pending queue they finalize (company-wide)
 import { Card } from "@astryxdesign/core/Card";
-import { Heading } from "@astryxdesign/core/Heading";
+import { HStack } from "@astryxdesign/core/HStack";
 import { Text } from "@astryxdesign/core/Text";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { LinkButton } from "@/components/LinkButton";
 import { requireSession } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
@@ -31,14 +32,14 @@ export default async function CancellationsPage({
   // Team lead with no team can't see anything scoped.
   if (session.role === "team_lead" && session.teamId === null) {
     return (
-      <div className="space-y-6">
-        <Heading level={1}>Cancellations</Heading>
+      <PageBody>
+        <PageHeader title="Cancellations" />
         <Card padding={5}>
           <Text type="supporting">
             You haven&apos;t been assigned to a team yet — ask an admin.
           </Text>
         </Card>
-      </div>
+      </PageBody>
     );
   }
 
@@ -64,18 +65,18 @@ export default async function CancellationsPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <Heading level={1}>Cancellations</Heading>
-        <Text type="supporting">
-          {session.role === "buyer"
+    <PageBody>
+      <PageHeader
+        title="Cancellations"
+        subtitle={
+          session.role === "buyer"
             ? "Pending cancellations to action. Marking one cancelled ends the subscription."
-            : "Subscriptions requested for cancellation. Buyers complete them."}
-        </Text>
-      </div>
+            : "Subscriptions requested for cancellation. Buyers complete them."
+        }
+      />
 
       {isAdmin && teams.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1">
+        <HStack gap={1} align="center" wrap="wrap">
           <LinkButton
             href={basePath}
             label="All teams"
@@ -91,10 +92,10 @@ export default async function CancellationsPage({
               size="sm"
             />
           ))}
-        </div>
+        </HStack>
       )}
 
       <CancellationsPanel rows={rows} canComplete={canComplete} />
-    </div>
+    </PageBody>
   );
 }

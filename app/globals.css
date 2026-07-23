@@ -1,7 +1,7 @@
 /* Astryx (Meta design system) + Tailwind v4 bridge.
  * Order per @astryxdesign/core/tailwind-theme.css docs: theme + preflight,
- * then core reset + astryx.css, then the neutral theme, then the token→utility
- * bridge, then Tailwind utilities. Colors/spacing/radius utilities
+ * then core reset + astryx.css, then the brand theme (lib/theme/brand.theme.ts),
+ * then the token→utility bridge, then Tailwind utilities. Colors/spacing/radius utilities
  * (bg-surface, text-primary, border-default, …) resolve to the active theme;
  * light/dark is driven by the <Theme> provider (see app/providers.tsx). */
 @layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
@@ -10,7 +10,7 @@
 @import "tailwindcss/preflight.css" layer(base);
 @import "@astryxdesign/core/reset.css";
 @import "@astryxdesign/core/astryx.css";
-@import "@astryxdesign/theme-neutral/theme.css";
+@import "../lib/theme/brand-theme.css";
 @import "@astryxdesign/core/tailwind-theme.css";
 @import "tailwindcss/utilities.css" layer(utilities);
 

@@ -3,8 +3,8 @@
 // team. Assigned charges move to the subscriptions list; unmapped ones stay
 // here. Turn the whole feature off once everything's mapped. Admin-only.
 import { Card } from "@astryxdesign/core/Card";
-import { Heading } from "@astryxdesign/core/Heading";
 import { Text } from "@astryxdesign/core/Text";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { getAllCards } from "@/modules/m01-cards/queries";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
@@ -42,21 +42,16 @@ export default async function CapturePage({
   const enabled = await getCaptureEnabled();
 
   const header = (
-    <div className="flex flex-row items-start justify-between gap-4">
-      <div className="space-y-1">
-        <Heading level={1}>Capture</Heading>
-        <Text type="supporting">
-          Pull each card&apos;s statement and map recurring charges to teams so
-          every live subscription is tracked.
-        </Text>
-      </div>
-      <CaptureToggle enabled={enabled} />
-    </div>
+    <PageHeader
+      title="Capture"
+      subtitle="Pull each card's statement and map recurring charges to teams so every live subscription is tracked."
+      actions={<CaptureToggle enabled={enabled} />}
+    />
   );
 
   if (!enabled) {
     return (
-      <div className="space-y-6">
+      <PageBody>
         {header}
         <Card padding={8}>
           <Text as="p" type="supporting" justify="center" className="block">
@@ -64,7 +59,7 @@ export default async function CapturePage({
             charges.
           </Text>
         </Card>
-      </div>
+      </PageBody>
     );
   }
 
@@ -90,7 +85,7 @@ export default async function CapturePage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageBody>
       {header}
 
       {cards.length === 0 ? (
@@ -110,6 +105,6 @@ export default async function CapturePage({
       {selectedCard && charges && (
         <CaptureTable charges={charges} teams={teams} monthLabel={tableLabel} />
       )}
-    </div>
+    </PageBody>
   );
 }

@@ -1,7 +1,8 @@
 // Admin Settings — email (SMTP) delivery config + the monthly report control,
 // and the bank (Mercury) API connection. Two tabs via ?tab=. Admin-only.
-import { Heading } from "@astryxdesign/core/Heading";
-import { Text } from "@astryxdesign/core/Text";
+import { HStack } from "@astryxdesign/core/HStack";
+import { VStack } from "@astryxdesign/core/VStack";
+import { PageHeader, PageBody } from "@/components/PageHeader";
 import { LinkButton } from "@/components/LinkButton";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { SmtpSettingsCard } from "@/modules/m15-settings/SmtpSettingsCard";
@@ -29,15 +30,18 @@ export default async function SettingsPage({
   ]);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <Heading level={1}>Settings</Heading>
-        <Text type="supporting">
-          Configure email delivery and the bank API connection.
-        </Text>
-      </div>
+    <PageBody>
+      <PageHeader
+        title="Settings"
+        subtitle="Configure email delivery and the bank API connection."
+      />
 
-      <div className="inline-flex items-center gap-1 rounded-lg border border-default p-1">
+      <HStack
+        gap={1}
+        align="center"
+        padding={1}
+        className="w-fit rounded-lg border border-default"
+      >
         <LinkButton
           href="/admin/settings?tab=email"
           label="Email"
@@ -50,16 +54,16 @@ export default async function SettingsPage({
           variant={tab === "bank" ? "secondary" : "ghost"}
           size="sm"
         />
-      </div>
+      </HStack>
 
       {tab === "email" ? (
-        <div className="space-y-6">
+        <VStack gap={6}>
           <SmtpSettingsCard settings={smtp} />
           <MonthlyReportButton />
-        </div>
+        </VStack>
       ) : (
         <BankSettingsCard settings={bank} />
       )}
-    </div>
+    </PageBody>
   );
 }
