@@ -5,8 +5,10 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type {
   DashboardTotalsRow,
+  SpendByCardPeriodRow,
   SpendByCardRow,
   SpendByMonthRow,
+  SpendPeriod,
   SpendByPlatformRow,
   SpendByTeamActualRow,
   SpendByTeamRow,
@@ -176,6 +178,59 @@ export async function getSpendByMonth(
     }));
   } catch (err) {
     console.error("[m06-dashboard] spend_by_month unavailable:", err);
+    return [];
+  }
+}
+
+// ── Expense lists (current week / month / year to date) ─────────────────────
+
+/** Actual money-out per team since the start of the current period. */
+export async function getSpendByTeamPeriod(
+  period: SpendPeriod,
+): Promise<SpendByTeamActualRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_team_period", {
+      p_period: period,
+    });
+    if (error) {
+      console.error("[m06-dashboard] spend_by_team_period failed:", error.message);
+      return [];
+    }
+    return ((data ?? []) as SpendByTeamActualRow[]).map((r) => ({
+      ...r,
+      total_out: Number(r.total_out),
+      transaction_count: Number(r.transaction_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_team_period unavailable:", err);
+    return [];
+  }
+}
+
+/** Actual money-out per card since the start of the current period;
+ *  optionally only the cards assigned to one team. */
+export async function getSpendByCardPeriod(
+  period: SpendPeriod,
+  teamId?: string,
+): Promise<SpendByCardPeriodRow[]> {
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.rpc("spend_by_card_period", {
+      p_period: period,
+      ...(teamId ? { p_team_id: teamId } : {}),
+    });
+    if (error) {
+      console.error("[m06-dashboard] spend_by_card_period failed:", error.message);
+      return [];
+    }
+    return ((data ?? []) as SpendByCardPeriodRow[]).map((r) => ({
+      ...r,
+      total_out: Number(r.total_out),
+      transaction_count: Number(r.transaction_count),
+    }));
+  } catch (err) {
+    console.error("[m06-dashboard] spend_by_card_period unavailable:", err);
     return [];
   }
 }

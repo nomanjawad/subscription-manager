@@ -7,30 +7,23 @@ import { LinkButton } from "@/components/LinkButton";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
 import { FilterBar } from "@/modules/m02-subscriptions/FilterBar";
+import { ExportMenu } from "@/modules/m02-subscriptions/ExportMenu";
 import { SubscriptionTable } from "@/modules/m02-subscriptions/SubscriptionTable";
 import {
   getSubscriptions,
   getTags,
+  parseSubscriptionFilters,
+  subscriptionScope,
+  type FilterParams,
 } from "@/modules/m02-subscriptions/queries";
+import { getCardOptions } from "@/modules/m01-cards/queries";
 
 export const dynamic = "force-dynamic";
-
-interface SubscriptionsSearchParams {
-  tag?: string | string[];
-  status?: string | string[];
-  cycle?: string | string[];
-  q?: string | string[];
-}
-
-/** Next delivers repeated params as arrays — only accept a single value. */
-function single(value: string | string[] | undefined): string | undefined {
-  return typeof value === "string" && value !== "" ? value : undefined;
-}
 
 export default async function SubscriptionsPage({
   searchParams,
 }: {
-  searchParams: Promise<SubscriptionsSearchParams>;
+  searchParams: Promise<FilterParams>;
 }) {
   const params = await searchParams;
   const session = await getSessionUser();
@@ -53,37 +46,24 @@ export default async function SubscriptionsPage({
     );
   }
 
-  const teamId =
-    session?.role === "team_lead" ? (session.teamId ?? undefined) : undefined;
-  // Buyers only ever see the subscriptions they themselves bought.
-  const isBuyer = session?.role === "buyer";
-  const purchasedBy = isBuyer ? session.id : undefined;
-  const canCreate = session?.role === "admin" || isBuyer;
+  const scope = subscriptionScope(session) ?? {};
+  const teamId = scope.teamId;
+  const isBuyer = session.role === "buyer";
+  const canCreate = session.role === "admin" || isBuyer;
   // Buyers get a read-only view of their purchases; admins/leads can manage rows.
-  const canManage =
-    session?.role === "admin" || session?.role === "team_lead";
+  const canManage = session.role === "admin" || session.role === "team_lead";
   const heading = isBuyer ? "My purchases" : "Subscriptions";
 
-  const status =
-    params.status === "active" || params.status === "cancelled"
-      ? params.status
-      : undefined;
-  const cycle =
-    params.cycle === "monthly" || params.cycle === "yearly"
-      ? params.cycle
-      : undefined;
-
-  const [rows, tags] = await Promise.all([
-    getSubscriptions({
-      tag: single(params.tag),
-      status,
-      cycle,
-      q: single(params.q),
-      teamId,
-      purchasedBy,
-    }),
+  const [rows, tags, cards] = await Promise.all([
+    getSubscriptions({ ...parseSubscriptionFilters(params), ...scope }),
     getTags(teamId),
+    getCardOptions(teamId),
   ]);
+
+  const cardOptions = cards.map((c) => ({
+    value: c.id,
+    label: `${c.nickname ?? c.name_on_card ?? "Card"} ••${c.last4}`,
+  }));
 
   return (
     <PageBody>
@@ -91,17 +71,20 @@ export default async function SubscriptionsPage({
         title={heading}
         subtitle={`${rows.length} subscription${rows.length === 1 ? "" : "s"}`}
         actions={
-          canCreate ? (
-            <LinkButton
-              href={newHref}
-              variant="primary"
-              label="Add subscription"
-            />
-          ) : undefined
+          <>
+            <ExportMenu />
+            {canCreate ? (
+              <LinkButton
+                href={newHref}
+                variant="primary"
+                label="Add subscription"
+              />
+            ) : null}
+          </>
         }
       />
 
-      <FilterBar tags={tags} />
+      <FilterBar tags={tags} cards={cardOptions} />
 
       <SubscriptionTable
         rows={rows}

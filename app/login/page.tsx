@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; reason?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error, reason } = await searchParams;
   return (
     <Center axis="both" minHeight="70vh">
       <Suspense>
-        <LoginForm next={next ?? "/"} />
+        <LoginForm next={next ?? "/"} message={error ?? reason} />
       </Suspense>
     </Center>
   );

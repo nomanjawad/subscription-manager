@@ -6,6 +6,7 @@ import { rolePath } from "@/lib/roles";
 import type { UserRole } from "@/lib/types";
 import { Providers } from "./providers";
 import { AppSideNav, type NavLink, type IconId } from "./AppSideNav";
+import { SessionTimer } from "./SessionTimer";
 
 export const metadata: Metadata = {
   title: "Subscription Manager",
@@ -30,6 +31,7 @@ const SECTIONS: Record<UserRole, NavSection[]> = {
     { section: "review", label: "Review", icon: "review", group: "Operations" },
     { section: "buy", label: "To buy", icon: "buy", group: "Operations" },
     { section: "teams", label: "Teams", icon: "teams", group: "Administration" },
+    { section: "admins", label: "Admins", icon: "admins", group: "Administration" },
     { section: "users", label: "Users", icon: "users", group: "Administration" },
     { section: "buyers", label: "Buyers", icon: "buyers", group: "Administration" },
     { section: "cards", label: "Cards", icon: "cards", group: "Administration" },
@@ -70,6 +72,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <Providers>
+          {session ? <SessionTimer expiresAt={session.expiresAt} /> : null}
           <AppShell
             contentPadding={0}
             sideNav={

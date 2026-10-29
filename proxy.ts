@@ -5,11 +5,14 @@ import {
   homeFor,
   isSectionAllowed,
 } from "@/lib/roles";
+import { sessionGate, type SessionGate } from "@/lib/auth/policy";
 
-// Public surface: login, the open request/cancellation forms, cron
-// (Bearer-secret) and dev seed. Every authenticated page lives under a role
-// prefix (/admin, /teamlead, /buyer); this proxy keeps each role in its own
-// URL space. Not the only guard — pages/actions re-check — just the routing.
+// Public surface: login, the open request/cancellation forms, the OAuth
+// callback, cron (Bearer-secret) and dev seed. Every authenticated page lives
+// under a role prefix (/admin, /teamlead, /buyer); this proxy keeps each role
+// in its own URL space and enforces the session policy (lib/auth/policy.ts):
+// Google sign-in + authenticator code, hard 30-minute limit. Not the only
+// guard — pages/actions re-check via getSessionUser — just the routing.
 type Role = "admin" | "team_lead" | "buyer";
 
 const PUBLIC_PAGES = [
@@ -17,7 +20,8 @@ const PUBLIC_PAGES = [
   "/subscription-request",
   "/cancellation-request",
 ];
-const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/"];
+const PUBLIC_API_PREFIXES = ["/api/cron/", "/api/dev/", "/auth/callback"];
+const MFA_PAGE = "/login/mfa";
 
 function isPublicPage(pathname: string): boolean {
   return PUBLIC_PAGES.some(
@@ -58,52 +62,77 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const allowlist = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  // Resolve role from the JWT (app_metadata), with the ADMIN_EMAILS bootstrap.
-  // Mirrors lib/supabase/auth.ts:resolveRole — kept DB-free for the edge.
-  const email = user?.email?.toLowerCase() ?? null;
+  // Resolve role from the JWT (app_metadata), set when an admin adds the
+  // account. Mirrors lib/supabase/auth.ts:resolveRole — kept DB-free for the edge.
   const metaRole = user?.app_metadata?.role;
-  let role: Role | null = null;
-  if (metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer")
-    role = metaRole;
-  else if (email && allowlist.includes(email)) role = "admin";
+  const role: Role | null =
+    metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer"
+      ? metaRole
+      : null;
 
-  const isAuthed = role !== null;
   const { pathname } = request.nextUrl;
+
+  // Session policy: only evaluated for a user with a role.
+  let gate: SessionGate | null = null;
+  if (user && role) {
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    gate = data
+      ? sessionGate({
+          currentLevel: data.currentLevel,
+          nextLevel: data.nextLevel,
+          methods: data.currentAuthenticationMethods ?? [],
+        })
+      : { kind: "invalid" };
+  }
+  const isAuthed = gate?.kind === "ok";
+  const needsMfa = gate?.kind === "mfa_verify" || gate?.kind === "mfa_enroll";
+  const isDead = gate?.kind === "expired" || gate?.kind === "invalid";
 
   // Any redirect must carry over cookies written during getUser() (refresh
   // token rotation) — otherwise the browser keeps a stale token.
   function redirectTo(path: string): NextResponse {
-    const url = request.nextUrl.clone();
-    url.pathname = path;
-    url.search = "";
-    const redirect = NextResponse.redirect(url);
+    // `path` may carry its own query (e.g. "/login?reason=expired").
+    const redirect = NextResponse.redirect(new URL(path, request.url));
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     return redirect;
   }
 
+  // An expired (30 min) or non-Google session is ended right here; the
+  // cleared auth cookies ride along on whatever response follows.
+  if (isDead) {
+    await supabase.auth.signOut({ scope: "local" });
+  }
+
+  if (isPublicApi(pathname)) return response;
+
+  // ── Two-factor step: needs a Google session that isn't through MFA yet ────
+  if (pathname === MFA_PAGE) {
+    if (isAuthed && role) return redirectTo(homeFor(role));
+    if (needsMfa) return response;
+    return redirectTo(isDead ? "/login?reason=expired" : "/login");
+  }
+
   // ── Public pages ────────────────────────────────────────────────────────
   if (isPublicPage(pathname)) {
-    // Signed-in users shouldn't sit on the login page.
-    if (pathname === "/login" && isAuthed && role) {
-      return redirectTo(homeFor(role));
+    if (pathname === "/login") {
+      // Signed-in users shouldn't sit on the login page.
+      if (isAuthed && role) return redirectTo(homeFor(role));
+      if (needsMfa) return redirectTo(MFA_PAGE);
     }
     return response;
   }
-  if (isPublicApi(pathname)) return response;
 
-  // ── Everything else requires a session ───────────────────────────────────
+  // ── Everything else requires a full session ──────────────────────────────
   if (!isAuthed || !role) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
+    if (needsMfa) return redirectTo(MFA_PAGE);
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.search = "";
     url.searchParams.set("next", pathname);
+    if (isDead) url.searchParams.set("reason", "expired");
     const redirect = NextResponse.redirect(url);
     response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
     return redirect;

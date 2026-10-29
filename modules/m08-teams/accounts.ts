@@ -1,4 +1,8 @@
 // m08-teams — GoTrue admin API helpers (server-only, service key).
+// Accounts are created WITHOUT a password: adding a user is what puts their
+// email on the allow list. They sign in with Google (Supabase links the Google
+// identity to this account by its verified email), then set up an
+// authenticator app on first sign-in.
 // Team lead auth accounts live in auth.users; role + team_id are stored in
 // app_metadata so middleware/page guards can resolve them from the JWT without
 // a DB round-trip. Every call here uses the service role key — never expose
@@ -47,7 +51,6 @@ async function readError(res: Response): Promise<string> {
 interface CreateAccountArgs {
   email: string;
   fullName: string | null;
-  password: string;
   teamId: string;
 }
 
@@ -58,7 +61,6 @@ interface CreateAccountArgs {
 export async function createTeamLeadAccount({
   email,
   fullName,
-  password,
   teamId,
 }: CreateAccountArgs): Promise<string> {
   const { url, key } = adminBase();
@@ -67,7 +69,6 @@ export async function createTeamLeadAccount({
     headers: adminHeaders(key),
     body: JSON.stringify({
       email,
-      password,
       email_confirm: true,
       app_metadata: { role: "team_lead", team_id: teamId },
       user_metadata: { full_name: fullName },
@@ -96,7 +97,6 @@ export async function createTeamLeadAccount({
 export async function createBuyerAccount({
   email,
   fullName,
-  password,
 }: Omit<CreateAccountArgs, "teamId">): Promise<string> {
   const { url, key } = adminBase();
   const res = await fetch(url, {
@@ -104,9 +104,43 @@ export async function createBuyerAccount({
     headers: adminHeaders(key),
     body: JSON.stringify({
       email,
-      password,
       email_confirm: true,
       app_metadata: { role: "buyer" },
+      user_metadata: { full_name: fullName },
+    }),
+  });
+
+  if (!res.ok) {
+    const message = await readError(res);
+    if (res.status === 422 || /already been registered/i.test(message)) {
+      throw new Error("A user with this email already exists.");
+    }
+    throw new Error(`Failed to create account: ${message}`);
+  }
+
+  const user = (await res.json()) as { id?: string };
+  if (!user.id) {
+    throw new Error("Failed to create account: no user id returned.");
+  }
+  return user.id;
+}
+
+/**
+ * Create an admin auth account (role='admin', no team). Returns the new
+ * user's id. Mirrors createBuyerAccount.
+ */
+export async function createAdminAccount({
+  email,
+  fullName,
+}: Omit<CreateAccountArgs, "teamId">): Promise<string> {
+  const { url, key } = adminBase();
+  const res = await fetch(url, {
+    method: "POST",
+    headers: adminHeaders(key),
+    body: JSON.stringify({
+      email,
+      email_confirm: true,
+      app_metadata: { role: "admin" },
       user_metadata: { full_name: fullName },
     }),
   });

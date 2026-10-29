@@ -27,7 +27,7 @@ export interface NotifiableRequest {
   reason: string | null;
   amount_estimate: number | null;
   billing_cycle: BillingCycle;
-  credentials: string | null;
+  has_credentials: boolean;
   team_id: string | null;
 }
 
@@ -44,7 +44,10 @@ function baseVars(req: NotifiableRequest, name: string | null): MergeVars {
     amount: fmtAmount(req.amount_estimate),
     cycle: req.billing_cycle,
     reason: req.reason ?? "—",
-    credentials: req.credentials ?? "None provided",
+    // Never the secret itself — email isn't a safe channel for it.
+    credentials: req.has_credentials
+      ? "Yes — ask an admin; they're stored encrypted in the app"
+      : "None provided",
     team: name ?? "Unassigned",
   };
 }

@@ -61,6 +61,9 @@ export function SubscriptionForm({
   const [billingCycle, setBillingCycle] = useState(
     subscription?.billing_cycle ?? "monthly",
   );
+  const [startDate, setStartDate] = useState(
+    subscription?.start_date ?? new Date().toLocaleDateString("en-CA"),
+  );
   const [nextRenewalDate, setNextRenewalDate] = useState(
     subscription?.next_renewal_date ?? "",
   );
@@ -160,6 +163,16 @@ export function SubscriptionForm({
               onChange={(v) => setBillingCycle(v as "monthly" | "yearly")}
             />
             <input type="hidden" name="billing_cycle" value={billingCycle} />
+          </div>
+
+          <div>
+            <DateInput
+              label="Start date"
+              isRequired
+              value={startDate ? (startDate as IsoDate) : undefined}
+              onChange={(v) => setStartDate(v ?? "")}
+            />
+            <input type="hidden" name="start_date" value={startDate} />
           </div>
 
           <div>

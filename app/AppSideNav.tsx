@@ -33,6 +33,7 @@ import {
   BarChart3,
   Settings,
   ReceiptText,
+  ShieldCheck,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types";
 import { homeFor } from "@/lib/roles";
@@ -47,6 +48,7 @@ export type IconId =
   | "review"
   | "buy"
   | "teams"
+  | "admins"
   | "users"
   | "buyers"
   | "cards"
@@ -71,6 +73,7 @@ const ICONS: Record<IconId, LucideIcon> = {
   review: ClipboardCheck,
   buy: ShoppingCart,
   teams: UsersRound,
+  admins: ShieldCheck,
   users: Users,
   buyers: Wallet,
   cards: CreditCard,

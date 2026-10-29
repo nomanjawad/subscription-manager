@@ -94,18 +94,11 @@ export function PurchaseDialog({ request, cards }: PurchaseDialogProps) {
             }
             content={
               <LayoutContent>
-                {request.credentials && (
-                  <div className="mb-4 rounded-lg border border-default p-3">
-                    <Text type="label" as="p">
-                      Login details from the requester
-                    </Text>
-                    <Text
-                      type="supporting"
-                      className="mt-1 block whitespace-pre-wrap break-words"
-                    >
-                      {request.credentials}
-                    </Text>
-                  </div>
+                {request.has_credentials && (
+                  <Text type="supporting" as="p" className="mb-4 block">
+                    The requester supplied login details — they&apos;re stored
+                    encrypted and only an admin can view them.
+                  </Text>
                 )}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <NumberInput

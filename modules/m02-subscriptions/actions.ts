@@ -29,6 +29,7 @@ interface SubscriptionInput {
   currency: string;
   billing_cycle: BillingCycle;
   next_renewal_date: string;
+  start_date: string;
   card_id: string | null;
   account_email: string | null;
   notes: string | null;
@@ -78,6 +79,15 @@ function parseSubscriptionForm(formData: FormData): SubscriptionInput {
     throw new Error("Next renewal date is required (YYYY-MM-DD).");
   }
 
+  const startDate = text(formData, "start_date");
+  if (
+    !startDate ||
+    !DATE_RE.test(startDate) ||
+    Number.isNaN(Date.parse(startDate))
+  ) {
+    throw new Error("Start date is required (YYYY-MM-DD).");
+  }
+
   const cardId = text(formData, "card_id");
   if (cardId !== null && !UUID_RE.test(cardId)) {
     throw new Error("Card must be a valid card id.");
@@ -96,6 +106,7 @@ function parseSubscriptionForm(formData: FormData): SubscriptionInput {
     currency,
     billing_cycle: billingCycle,
     next_renewal_date: nextRenewalDate,
+    start_date: startDate,
     card_id: cardId,
     account_email: text(formData, "account_email"),
     notes: text(formData, "notes"),

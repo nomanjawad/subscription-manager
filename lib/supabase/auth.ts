@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/lib/types";
 import { homeFor } from "@/lib/roles";
+import { sessionGate, type SessionGate } from "@/lib/auth/policy";
 
 export async function createAuthClient() {
   const cookieStore = await cookies();
@@ -31,36 +32,61 @@ export async function createAuthClient() {
   );
 }
 
-export function adminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
-
 /**
- * The signed-in user resolved to a role + team.
- *   - role/team come from the JWT (auth.users.app_metadata), set when an admin
- *     creates a team lead. This keeps middleware/page checks DB-free.
- *   - Any email in ADMIN_EMAILS is always an admin (bootstrap super-admin),
- *     even without app_metadata — that's how the seeded admin logs in.
+ * The signed-in user resolved to a role + team. role/team come from the JWT
+ * (auth.users.app_metadata), set when an admin adds the account (Admins,
+ * Teams, Buyers pages) — that's the allow list; there is no env-based admin.
+ * This keeps proxy/page checks DB-free.
  */
 export interface SessionUser {
   id: string;
   email: string;
   role: UserRole;
   teamId: string | null;
+  /** Unix seconds when this session hard-expires (30 min after sign-in). */
+  expiresAt: number;
 }
 
-function resolveRole(email: string, metaRole: unknown): UserRole | null {
-  if (metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer")
-    return metaRole;
-  if (adminEmails().includes(email.toLowerCase())) return "admin";
-  return null;
+export function resolveRole(metaRole: unknown): UserRole | null {
+  return metaRole === "admin" || metaRole === "team_lead" || metaRole === "buyer"
+    ? metaRole
+    : null;
 }
 
-/** The current session as a role-resolved user, or null if unauthenticated
- *  / not authorized (a valid Supabase user with no admin/team_lead role). */
+type AuthClient = Awaited<ReturnType<typeof createAuthClient>>;
+
+/** Evaluate the session policy (Google sign-in, 30-min hard limit, TOTP) for
+ *  the client's current session. Call after getUser() has verified it. */
+export async function gateFor(supabase: AuthClient): Promise<SessionGate> {
+  const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error || !data) return { kind: "invalid" };
+  return sessionGate({
+    currentLevel: data.currentLevel,
+    nextLevel: data.nextLevel,
+    methods: data.currentAuthenticationMethods ?? [],
+  });
+}
+
+/**
+ * The signed-in user mid-login: authenticated with Google but not yet through
+ * the authenticator step. Used by the /login/mfa page only.
+ */
+export async function getPendingLogin(): Promise<
+  | { email: string; gate: SessionGate }
+  | null
+> {
+  const supabase = await createAuthClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+  if (!resolveRole(user.app_metadata?.role)) return null;
+  return { email: user.email, gate: await gateFor(supabase) };
+}
+
+/** The current session as a role-resolved user, or null if unauthenticated,
+ *  not authorized (no role), or not fully signed in under the session policy
+ *  (Google + authenticator code, within 30 minutes of signing in). */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const supabase = await createAuthClient();
   const {
@@ -68,13 +94,22 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   } = await supabase.auth.getUser();
   if (!user?.email) return null;
 
-  const role = resolveRole(user.email, user.app_metadata?.role);
+  const role = resolveRole(user.app_metadata?.role);
   if (!role) return null;
+
+  const gate = await gateFor(supabase);
+  if (gate.kind !== "ok") return null;
 
   const rawTeam = user.app_metadata?.team_id;
   const teamId = typeof rawTeam === "string" && rawTeam ? rawTeam : null;
 
-  return { id: user.id, email: user.email, role, teamId };
+  return {
+    id: user.id,
+    email: user.email,
+    role,
+    teamId,
+    expiresAt: gate.expiresAt,
+  };
 }
 
 /** The signed-in admin user, or null. (Back-compat helper for the layout.) */

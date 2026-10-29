@@ -42,15 +42,10 @@ export async function addBuyer(formData: FormData): Promise<void> {
     throw new Error("Full name must be at most 200 characters.");
   }
 
-  const password = formData.get("password");
-  if (typeof password !== "string" || password.length < 8) {
-    throw new Error("Password is required and must be at least 8 characters.");
-  }
-
   const supabase = createServiceClient();
 
   // 1) Create the GoTrue account (role lives in app_metadata; no team).
-  const userId = await createBuyerAccount({ email, fullName, password });
+  const userId = await createBuyerAccount({ email, fullName });
 
   // 2) Mirror it in profiles. On failure, remove the account so we never leave
   //    an auth user without a profile.

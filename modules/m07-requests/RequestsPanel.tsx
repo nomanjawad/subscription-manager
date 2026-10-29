@@ -19,6 +19,7 @@ import type { RequestStatus, SubscriptionRequestRow } from "@/lib/types";
 import { getTeamsPublic } from "@/modules/m08-teams/queries";
 import { PurchaseDialog } from "./PurchaseDialog";
 import { RequestActions } from "./RequestActions";
+import { RevealCredentialsButton } from "./RevealCredentialsButton";
 import { getRequestCounts, getRequests } from "./queries";
 
 export type RequestsTab = "requested" | "pending" | "history";
@@ -74,14 +75,27 @@ function Requester({ row }: { row: SubscriptionRequestRow }) {
   );
 }
 
-function PlatformProduct({ row }: { row: SubscriptionRequestRow }) {
+function PlatformProduct({
+  row,
+  canReveal,
+}: {
+  row: SubscriptionRequestRow;
+  canReveal: boolean;
+}) {
   return (
-    <div>
-      <div className="font-medium text-primary">{row.platform}</div>
+    <VStack gap={0.5} align="start">
+      <Text size="sm" weight="medium">{row.platform}</Text>
       {row.product && (
-        <div className="text-xs text-secondary">{row.product}</div>
+        <Text size="xsm" type="supporting">{row.product}</Text>
       )}
-    </div>
+      {row.has_credentials ? (
+        canReveal ? (
+          <RevealCredentialsButton requestId={row.id} platform={row.platform} />
+        ) : (
+          <Text size="xsm" type="supporting">Credentials on file</Text>
+        )
+      ) : null}
+    </VStack>
   );
 }
 
@@ -121,9 +135,12 @@ function EmptyState({ message }: { message: string }) {
 function RequestedTable({
   rows,
   teamNames,
+  canReveal,
 }: {
   rows: SubscriptionRequestRow[];
   teamNames: Map<string, string>;
+  /** Admins only: decrypt-and-view the requester's credentials. */
+  canReveal: boolean;
 }) {
   if (rows.length === 0) {
     return <EmptyState message="No open requests — all caught up." />;
@@ -152,7 +169,7 @@ function RequestedTable({
               <TeamName row={row} teamNames={teamNames} />
             </TableCell>
             <TableCell>
-              <PlatformProduct row={row} />
+              <PlatformProduct row={row} canReveal={canReveal} />
             </TableCell>
             <TableCell className="whitespace-nowrap text-right tabular-nums">
               <Estimate row={row} />
@@ -177,9 +194,12 @@ function RequestedTable({
 async function PendingTable({
   rows,
   teamNames,
+  canReveal,
 }: {
   rows: SubscriptionRequestRow[];
   teamNames: Map<string, string>;
+  /** Admins only: decrypt-and-view the requester's credentials. */
+  canReveal: boolean;
 }) {
   if (rows.length === 0) {
     return <EmptyState message="Nothing pending purchase." />;
@@ -209,7 +229,7 @@ async function PendingTable({
               <TeamName row={row} teamNames={teamNames} />
             </TableCell>
             <TableCell>
-              <PlatformProduct row={row} />
+              <PlatformProduct row={row} canReveal={canReveal} />
             </TableCell>
             <TableCell className="whitespace-nowrap text-right tabular-nums">
               <Estimate row={row} />
@@ -234,9 +254,12 @@ async function PendingTable({
 function HistoryTable({
   rows,
   teamNames,
+  canReveal,
 }: {
   rows: SubscriptionRequestRow[];
   teamNames: Map<string, string>;
+  /** Admins only: decrypt-and-view the requester's credentials. */
+  canReveal: boolean;
 }) {
   if (rows.length === 0) {
     return <EmptyState message="No purchased or rejected requests yet." />;
@@ -264,7 +287,7 @@ function HistoryTable({
               <TeamName row={row} teamNames={teamNames} />
             </TableCell>
             <TableCell>
-              <PlatformProduct row={row} />
+              <PlatformProduct row={row} canReveal={canReveal} />
             </TableCell>
             {/* Status + when it was reviewed */}
             <TableCell>
@@ -322,9 +345,12 @@ export async function RequestsPanel({
   tab,
   teamId,
   basePath,
+  canRevealCredentials = false,
 }: {
   tab: string | undefined;
   teamId?: string;
+  /** Admin viewers may reveal encrypted request credentials. */
+  canRevealCredentials?: boolean;
   /** Role-prefixed path to this page, e.g. "/admin/requests". */
   basePath: string;
 }) {
@@ -358,13 +384,13 @@ export async function RequestsPanel({
       </div>
 
       {active === "requested" && (
-        <RequestedTable rows={rows} teamNames={teamNames} />
+        <RequestedTable rows={rows} teamNames={teamNames} canReveal={canRevealCredentials} />
       )}
       {active === "pending" && (
-        <PendingTable rows={rows} teamNames={teamNames} />
+        <PendingTable rows={rows} teamNames={teamNames} canReveal={canRevealCredentials} />
       )}
       {active === "history" && (
-        <HistoryTable rows={rows} teamNames={teamNames} />
+        <HistoryTable rows={rows} teamNames={teamNames} canReveal={canRevealCredentials} />
       )}
     </div>
   );

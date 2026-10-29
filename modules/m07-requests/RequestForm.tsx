@@ -54,7 +54,9 @@ function RequestFormInner({
   const [amountEstimate, setAmountEstimate] = useState<number | null>(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [reason, setReason] = useState("");
-  const [credentials, setCredentials] = useState("");
+  const [credLogin, setCredLogin] = useState("");
+  const [credPassword, setCredPassword] = useState("");
+  const [credNotes, setCredNotes] = useState("");
 
   if (state.ok) {
     return (
@@ -101,7 +103,9 @@ function RequestFormInner({
         />
         <input type="hidden" name="billing_cycle" value={billingCycle} />
         <input type="hidden" name="reason" value={reason} />
-        <input type="hidden" name="credentials" value={credentials} />
+        <input type="hidden" name="credentials_login" value={credLogin} />
+        <input type="hidden" name="credentials_password" value={credPassword} />
+        <input type="hidden" name="credentials_notes" value={credNotes} />
 
         <VStack gap={4} paddingBlock={4}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -192,13 +196,37 @@ function RequestFormInner({
             </div>
 
             <div className="sm:col-span-2">
+              <VStack gap={1}>
+                <Text type="label">Platform credentials (optional)</Text>
+                <Text type="supporting" size="sm">
+                  If the subscription should go on an existing account, add its
+                  login. It&apos;s encrypted before it&apos;s saved and only
+                  admins can view it.
+                </Text>
+              </VStack>
+            </div>
+
+            <TextInput
+              label="Login email / username"
+              value={credLogin}
+              onChange={setCredLogin}
+              placeholder="team@company.com"
+            />
+            <TextInput
+              label="Password"
+              type="password"
+              value={credPassword}
+              onChange={setCredPassword}
+            />
+
+            <div className="sm:col-span-2">
               <TextArea
-                label="Platform login details (optional)"
-                value={credentials}
-                onChange={setCredentials}
+                label="Credential notes"
+                value={credNotes}
+                onChange={setCredNotes}
                 rows={2}
                 maxLength={2000}
-                placeholder="e.g. the account username/email to use, or how to access it — only the admin and buyer see this."
+                placeholder="e.g. 2FA backup codes or how to access the account"
               />
             </div>
 

@@ -10,6 +10,7 @@
 //   from_email  From: address, e.g. "Subscriptions <notifications@skytechbpo.com>"
 import nodemailer, { type Transporter } from "nodemailer";
 import { createServiceClient } from "@/lib/supabase/server";
+import { SECRET_CONTEXT, tryDecryptSecret } from "@/lib/crypto/secrets";
 
 export interface SmtpConfig {
   host: string;
@@ -32,7 +33,7 @@ async function dbSettings(): Promise<Partial<SmtpConfig> | null> {
       host: data.host ?? undefined,
       port: data.port ?? undefined,
       user: data.username ?? undefined,
-      pass: data.password ?? undefined,
+      pass: tryDecryptSecret(data.password, SECRET_CONTEXT.smtpPassword) ?? undefined,
       from: data.from_email ?? undefined,
     };
   } catch {

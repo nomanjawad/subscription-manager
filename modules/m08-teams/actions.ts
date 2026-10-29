@@ -169,11 +169,6 @@ export async function addTeamLead(formData: FormData): Promise<void> {
     throw new Error("Full name must be at most 200 characters.");
   }
 
-  const password = formData.get("password");
-  if (typeof password !== "string" || password.length < 8) {
-    throw new Error("Password is required and must be at least 8 characters.");
-  }
-
   const teamId = text(formData, "team_id");
   if (!teamId) throw new Error("A team is required.");
   assertUuid(teamId, "team");
@@ -195,7 +190,6 @@ export async function addTeamLead(formData: FormData): Promise<void> {
   const userId = await createTeamLeadAccount({
     email,
     fullName,
-    password,
     teamId,
   });
 

@@ -41,3 +41,17 @@ export async function getAllCards(): Promise<CardWithTeamRow[]> {
     return { ...card, team_name: team?.name ?? null };
   });
 }
+
+/** Every synced card (any status — cancelled subscriptions may sit on frozen
+ *  cards), optionally only one team's — feeds the subscription card filter. */
+export async function getCardOptions(teamId?: string): Promise<CardRow[]> {
+  const supabase = createServiceClient();
+  let query = supabase.from("cards").select("*");
+  if (teamId) query = query.eq("team_id", teamId);
+  const { data, error } = await query.order("last4", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to load cards: ${error.message}`);
+  }
+  return (data ?? []) as CardRow[];
+}

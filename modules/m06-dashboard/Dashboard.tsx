@@ -20,17 +20,21 @@ import {
   TableHeaderCell,
   TableRow,
 } from "@astryxdesign/core/Table";
-import { BarList, DonutChart, MonthlyBars } from "@/components/charts/Charts";
+import { DonutChart, MonthlyBars } from "@/components/charts/Charts";
 import {
   getDashboardTotals,
   getSpendByCard,
+  getSpendByCardPeriod,
   getSpendByMonth,
   getSpendByPlatform,
   getSpendByTeam,
   getSpendByTeamActual,
+  getSpendByTeamPeriod,
   getUpcomingRenewals,
 } from "./queries";
 import { CardFilter } from "./CardFilter";
+import { PeriodToggle } from "./PeriodToggle";
+import type { SpendPeriod } from "@/lib/types";
 
 // ── Formatting helpers ────────────────────────────────────────────────────
 
@@ -222,83 +226,174 @@ async function SpendingCharts({ cardFilter }: { cardFilter?: string }) {
           container="card"
         />
       )}
-      <SectionCard
-        title="Monthly spend"
-        action={<CardFilter cards={cardOptions} selected={cardFilter} />}
-      >
-        <Panel>
-          {monthHasData ? (
-            <MonthlyBars data={byMonth.map((m) => ({ month: m.month, value: m.total_out }))} formatValue={(n) => money(n)} />
-          ) : (
-            <Text as="p" type="supporting" justify="center" className="block py-8 text-center">
-              No card spend recorded in the last {SPEND_MONTHS} months
-              {cardFilter ? " for this card" : ""}.
-            </Text>
-          )}
-          <Text as="p" type="supporting" className="mt-3 block">
-            Actual money out of Mercury, across all synced transactions.
-          </Text>
-        </Panel>
-      </SectionCard>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard title="Spend by team — planned">
-          {byTeam.length === 0 ? (
-            <EmptyState>No team spend to report yet.</EmptyState>
-          ) : (
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <SectionCard
+            title="Monthly spend"
+            action={<CardFilter cards={cardOptions} selected={cardFilter} />}
+          >
             <Panel>
-              <DonutChart
-                data={byTeam.map((t) => ({
-                  label: t.team_name,
-                  value: t.monthly_amount,
-                }))}
-                formatValue={(n) => money(n)}
-              />
-              <Text as="p" type="supporting" className="mt-4 block">
-                Normalized monthly subscription cost committed per team.
+              {monthHasData ? (
+                <MonthlyBars data={byMonth.map((m) => ({ month: m.month, value: m.total_out }))} formatValue={(n) => money(n)} />
+              ) : (
+                <Text as="p" type="supporting" justify="center" className="block py-8 text-center">
+                  No card spend recorded in the last {SPEND_MONTHS} months
+                  {cardFilter ? " for this card" : ""}.
+                </Text>
+              )}
+              <Text as="p" type="supporting" className="mt-3 block">
+                Actual money out of Mercury, across all synced transactions.
               </Text>
             </Panel>
-          )}
-        </SectionCard>
+          </SectionCard>
+        </div>
 
-        <SectionCard title="Spend by team — actual">
-          {byTeamActual.length === 0 ? (
-            <EmptyState>No card transactions to attribute yet.</EmptyState>
-          ) : (
-            <Panel>
-              <BarList
-                data={byTeamActual.map((t) => ({
-                  label: t.team_name,
-                  value: t.total_out,
-                  sub: `· ${t.transaction_count} tx`,
-                }))}
-                formatValue={(n) => money(n)}
-              />
-              <Text as="p" type="supporting" className="mt-4 block">
-                Real money out of Mercury, attributed by the card&apos;s team.
-              </Text>
-            </Panel>
-          )}
-        </SectionCard>
+        <div className="lg:col-span-2">
+          <SectionCard title="Spend by team — planned">
+            {byTeam.length === 0 ? (
+              <EmptyState>No team spend to report yet.</EmptyState>
+            ) : (
+              <Panel>
+                <DonutChart
+                  data={byTeam.map((t) => ({
+                    label: t.team_name,
+                    value: t.monthly_amount,
+                  }))}
+                  formatValue={(n) => money(n)}
+                />
+                <Text as="p" type="supporting" className="mt-4 block">
+                  Normalized monthly subscription cost committed per team.
+                </Text>
+              </Panel>
+            )}
+          </SectionCard>
+        </div>
       </div>
-
-      <SectionCard title="Spend by card">
-        {byCard.length === 0 ? (
-          <EmptyState>No card transactions synced yet.</EmptyState>
-        ) : (
-          <Panel>
-            <BarList
-              data={byCard.map((c) => ({
-                label: cardLabel(c),
-                value: c.total_out,
-                sub: `· ${c.transaction_count} tx`,
-              }))}
-              formatValue={(n) => money(n)}
-            />
-          </Panel>
-        )}
-      </SectionCard>
     </div>
+  );
+}
+
+// ── Expense lists (team / card, current period to date) ─────────────────────
+
+const PERIOD_LABEL: Record<SpendPeriod, string> = {
+  week: "this week",
+  month: "this month",
+  year: "this year",
+};
+
+function txCount(n: number): string {
+  return `${n} ${n === 1 ? "charge" : "charges"}`;
+}
+
+async function ExpenseLists({
+  period,
+  teamId,
+}: {
+  period: SpendPeriod;
+  /** Team lead scope: only this team's cards, no per-team list. */
+  teamId?: string;
+}) {
+  const [byTeam, byCard] = await Promise.all([
+    teamId ? Promise.resolve([]) : getSpendByTeamPeriod(period),
+    getSpendByCardPeriod(period, teamId),
+  ]);
+  const total = byCard.reduce((sum, c) => sum + c.total_out, 0);
+  const label = PERIOD_LABEL[period];
+
+  const cardTable = (
+    <SectionCard title="Expenses by card">
+      {byCard.length === 0 ? (
+        <EmptyState>No card charges {label}.</EmptyState>
+      ) : (
+        <Table density="compact">
+          <TableHeader>
+            <TableRow isHeaderRow>
+              <TableHeaderCell>Card</TableHeaderCell>
+              {teamId ? null : <TableHeaderCell>Team</TableHeaderCell>}
+              <TableHeaderCell className="text-right">Charges</TableHeaderCell>
+              <TableHeaderCell className="text-right">Spent</TableHeaderCell>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {byCard.map((c) => (
+              <TableRow key={c.mercury_card_id}>
+                <TableCell>
+                  <Text size="sm" weight="medium">{cardLabel(c)}</Text>
+                </TableCell>
+                {teamId ? null : (
+                  <TableCell>
+                    <Text size="sm" type={c.team_name ? undefined : "supporting"}>
+                      {c.team_name ?? "Unassigned"}
+                    </Text>
+                  </TableCell>
+                )}
+                <TableCell className="text-right tabular-nums">
+                  <Text size="sm" type="supporting">{txCount(c.transaction_count)}</Text>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  <Text size="sm" weight="medium">{money(c.total_out)}</Text>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </SectionCard>
+  );
+
+  return (
+    <VStack gap={3} align="stretch">
+      <HStack justify="between" align="center" gap={3} wrap="wrap">
+        <VStack gap={0.5}>
+          <Heading level={2}>Expenses</Heading>
+          <Text type="supporting">
+            {money(total)} in actual card charges {label}
+            {teamId ? " on your team's cards" : ""}.
+          </Text>
+        </VStack>
+        <PeriodToggle period={period} />
+      </HStack>
+
+      {teamId ? (
+        cardTable
+      ) : (
+        <Grid columns={{ minWidth: 360, max: 2 }} gap={6}>
+          <SectionCard title="Expenses by team">
+            {byTeam.length === 0 ? (
+              <EmptyState>No card charges {label}.</EmptyState>
+            ) : (
+              <Table density="compact">
+                <TableHeader>
+                  <TableRow isHeaderRow>
+                    <TableHeaderCell>Team</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Charges</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Spent</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {byTeam.map((t) => (
+                    <TableRow key={t.team_id ?? "unassigned"}>
+                      <TableCell>
+                        <Text size="sm" weight="medium" type={t.team_id ? undefined : "supporting"}>
+                          {t.team_name}
+                        </Text>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <Text size="sm" type="supporting">{txCount(t.transaction_count)}</Text>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <Text size="sm" weight="medium">{money(t.total_out)}</Text>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </SectionCard>
+          {cardTable}
+        </Grid>
+      )}
+    </VStack>
   );
 }
 
@@ -310,11 +405,14 @@ export default async function Dashboard({
   teamId,
   isAdmin = false,
   cardFilter,
+  period = "month",
   basePath,
 }: {
   teamId?: string;
   isAdmin?: boolean;
   cardFilter?: string;
+  /** Expense-list period (current week / month / year to date). */
+  period?: SpendPeriod;
   /** Role-prefixed home path (e.g. "/admin"); used for in-dashboard links. */
   basePath: string;
 }) {
@@ -372,6 +470,13 @@ export default async function Dashboard({
 
       {/* Admin-only spending charts (monthly trend, by team, by card). */}
       {isAdmin && <SpendingCharts cardFilter={cardFilter} />}
+
+      {/* Expense lists by team / card — admins see all, leads their team. */}
+      {isAdmin ? (
+        <ExpenseLists period={period} />
+      ) : teamId ? (
+        <ExpenseLists period={period} teamId={teamId} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Upcoming renewals */}

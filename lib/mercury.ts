@@ -3,6 +3,7 @@
 // MERCURY_API_URL / MERCURY_API_TOKEN env vars, so sandbox → production can be
 // switched either in-app or via env.
 import { createServiceClient } from "@/lib/supabase/server";
+import { SECRET_CONTEXT, tryDecryptSecret } from "@/lib/crypto/secrets";
 
 export interface MercuryAccount {
   id: string;
@@ -71,7 +72,11 @@ async function dbConfig(): Promise<{ url?: string; token?: string } | null> {
       .select("api_url, api_token")
       .maybeSingle();
     if (error || !data) return null;
-    return { url: data.api_url ?? undefined, token: data.api_token ?? undefined };
+    return {
+      url: data.api_url ?? undefined,
+      token:
+        tryDecryptSecret(data.api_token, SECRET_CONTEXT.bankApiToken) ?? undefined,
+    };
   } catch {
     return null;
   }

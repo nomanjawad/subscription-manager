@@ -90,6 +90,13 @@ export interface LeadOption {
  * approved requests company-wide. purchase_count is how many subscriptions
  * they've bought (stamped via subscriptions.purchased_by).
  */
+export interface AdminRow {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+}
+
 export interface BuyerRow {
   id: string;
   email: string;
@@ -137,6 +144,7 @@ export interface SubscriptionRow {
   currency: string;
   billing_cycle: BillingCycle;
   next_renewal_date: string; // date (YYYY-MM-DD)
+  start_date: string; // date (YYYY-MM-DD)
   card_id: string | null;
   account_email: string | null;
   status: SubscriptionStatus;
@@ -158,7 +166,9 @@ export interface SubscriptionRequestRow {
   reason: string | null;
   amount_estimate: number | null;
   billing_cycle: BillingCycle;
-  credentials: string | null;
+  /** Whether the requester supplied (encrypted) platform credentials. The
+   *  secret itself lives in request_credentials and is admin-reveal only. */
+  has_credentials: boolean;
   tag: string | null;
   team_id: string | null;
   status: RequestStatus;
@@ -167,6 +177,13 @@ export interface SubscriptionRequestRow {
   reviewed_by: string | null;
   purchased_subscription_id: string | null;
   created_at: string;
+}
+
+/** Decrypted request credentials (admin reveal only — never stored in plain). */
+export interface RequestCredentials {
+  login: string | null;
+  password: string | null;
+  notes: string | null;
 }
 
 export interface RequestCountsRow {
@@ -242,6 +259,7 @@ export interface SubscriptionOverviewRow {
   purchased_by: string | null;
   purchased_by_name: string | null;
   cancellation_pending: boolean;
+  start_date: string;
 }
 
 /** A cancellation request joined with team, actor names, and (if linked) the
@@ -354,6 +372,13 @@ export interface SpendByCardRow {
   card_name: string | null;
   total_out: number;
   transaction_count: number;
+}
+
+/** Calendar period for the dashboard expense lists (current period to date). */
+export type SpendPeriod = "week" | "month" | "year";
+
+export interface SpendByCardPeriodRow extends SpendByCardRow {
+  team_name: string | null;
 }
 
 export interface SpendByMonthRow {

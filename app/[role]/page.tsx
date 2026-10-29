@@ -3,6 +3,7 @@ import Dashboard from "@/modules/m06-dashboard/Dashboard";
 import { BuyView } from "@/modules/m07-requests/BuyView";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { rolePath } from "@/lib/roles";
+import type { SpendPeriod } from "@/lib/types";
 import { Card } from "@astryxdesign/core/Card";
 import { Text } from "@astryxdesign/core/Text";
 import { PageHeader, PageBody } from "@/components/PageHeader";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function RoleHome({
   searchParams,
 }: {
-  searchParams: Promise<{ card?: string }>;
+  searchParams: Promise<{ card?: string; period?: string }>;
 }) {
   // The [role] layout has already ensured a session whose role matches the URL.
   const session = await getSessionUser();
@@ -23,8 +24,10 @@ export default async function RoleHome({
   }
 
   const isTeamLead = session.role === "team_lead";
-  const { card } = await searchParams;
+  const { card, period: rawPeriod } = await searchParams;
   const cardFilter = typeof card === "string" && card !== "" ? card : undefined;
+  const period: SpendPeriod =
+    rawPeriod === "week" || rawPeriod === "year" ? rawPeriod : "month";
   const basePath = rolePath(session.role);
 
   // Team lead with no team assigned — nothing to aggregate yet.
@@ -50,9 +53,14 @@ export default async function RoleHome({
     <PageBody>
       <PageHeader title="Dashboard" subtitle={subtitle} />
       {isTeamLead ? (
-        <Dashboard teamId={session.teamId!} basePath={basePath} />
+        <Dashboard teamId={session.teamId!} period={period} basePath={basePath} />
       ) : (
-        <Dashboard isAdmin cardFilter={cardFilter} basePath={basePath} />
+        <Dashboard
+          isAdmin
+          cardFilter={cardFilter}
+          period={period}
+          basePath={basePath}
+        />
       )}
     </PageBody>
   );

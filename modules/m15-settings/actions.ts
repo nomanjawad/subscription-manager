@@ -9,6 +9,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/supabase/auth";
 import { sendRawEmail } from "@/lib/email/send";
 import { listAccounts } from "@/lib/mercury";
+import { encryptSecret, SECRET_CONTEXT } from "@/lib/crypto/secrets";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -55,7 +56,10 @@ export async function updateSmtpSettings(input: SmtpInput): Promise<void> {
   };
   // Only overwrite the password when a new one is actually supplied.
   const password = clean(input.password);
-  if (password !== null) payload.password = password;
+  // Stored encrypted; lib/email/smtp.ts decrypts on use.
+  if (password !== null) {
+    payload.password = encryptSecret(password, SECRET_CONTEXT.smtpPassword);
+  }
 
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -85,7 +89,10 @@ export async function updateBankSettings(input: BankInput): Promise<void> {
 
   const payload: Record<string, unknown> = { id: true, api_url: apiUrl };
   const token = clean(input.api_token);
-  if (token !== null) payload.api_token = token;
+  // Stored encrypted; lib/mercury.ts decrypts on use.
+  if (token !== null) {
+    payload.api_token = encryptSecret(token, SECRET_CONTEXT.bankApiToken);
+  }
 
   const supabase = createServiceClient();
   const { error } = await supabase

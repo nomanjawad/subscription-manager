@@ -7,11 +7,17 @@
 // trimmed, length-capped and validated; error messages never echo raw input.
 // purchaseRequest is the sanctioned orchestrator that converts an approved
 // request into a real subscriptions row.
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/auth";
-import type { BillingCycle, RequestStatus } from "@/lib/types";
+import type {
+  BillingCycle,
+  RequestCredentials,
+  RequestStatus,
+} from "@/lib/types";
 import { profileEmail } from "@/lib/email/recipients";
+import { encryptSecret, SECRET_CONTEXT } from "@/lib/crypto/secrets";
 import { assertCanActOnRequestTeam, assertCanPurchase } from "./authz";
 import {
   notifyPurchased,
@@ -99,12 +105,22 @@ export async function submitRequest(
     return fail(`Reason must be at most ${LONG_MAX} characters.`);
   }
 
-  // Optional: login details for the platform, so the buyer can complete the
-  // purchase. Sensitive — only ever shown to admins/buyers in the purchase flow.
-  const credentials = text(formData, "credentials");
-  if (credentials !== null && credentials.length > LONG_MAX) {
-    return fail(`Credentials must be at most ${LONG_MAX} characters.`);
+  // Optional: login details for the platform. Encrypted before it's stored
+  // (request_credentials) and only ever revealed to admins.
+  const credLogin = text(formData, "credentials_login");
+  const credPassword = text(formData, "credentials_password");
+  const credNotes = text(formData, "credentials_notes");
+  if (credLogin !== null && credLogin.length > SHORT_MAX) {
+    return fail(`Login must be at most ${SHORT_MAX} characters.`);
   }
+  if (credPassword !== null && credPassword.length > SHORT_MAX) {
+    return fail(`Password must be at most ${SHORT_MAX} characters.`);
+  }
+  if (credNotes !== null && credNotes.length > LONG_MAX) {
+    return fail(`Credential notes must be at most ${LONG_MAX} characters.`);
+  }
+  const hasCredentials =
+    credLogin !== null || credPassword !== null || credNotes !== null;
 
   let amountEstimate: number | null = null;
   const amountRaw = text(formData, "amount_estimate");
@@ -191,7 +207,28 @@ export async function submitRequest(
     autoApprove = team?.auto_approve === true;
   }
 
+  // The id is generated here so the credentials can be encrypted bound to it
+  // (AAD) before anything is written.
+  const requestId = randomUUID();
+  let credentialsCiphertext: string | null = null;
+  if (hasCredentials) {
+    try {
+      credentialsCiphertext = encryptSecret(
+        JSON.stringify({
+          login: credLogin,
+          password: credPassword,
+          notes: credNotes,
+        } satisfies RequestCredentials),
+        SECRET_CONTEXT.requestCredentials(requestId),
+      );
+    } catch (err) {
+      console.error("[m07-requests] credential encryption failed:", err);
+      return fail("Could not submit your request right now. Please try again.");
+    }
+  }
+
   const { error } = await supabase.from("subscription_requests").insert({
+    id: requestId,
     requester_name: requesterName,
     requester_email: requesterEmail,
     platform,
@@ -199,7 +236,6 @@ export async function submitRequest(
     reason,
     amount_estimate: amountEstimate,
     billing_cycle: billingCycle,
-    credentials,
     team_id: teamId,
     ...(autoApprove
       ? {
@@ -214,6 +250,17 @@ export async function submitRequest(
     return fail("Could not submit your request right now. Please try again.");
   }
 
+  if (credentialsCiphertext !== null) {
+    const { error: credError } = await supabase
+      .from("request_credentials")
+      .insert({ request_id: requestId, ciphertext: credentialsCiphertext });
+    if (credError) {
+      // Don't keep a request whose credentials silently went missing.
+      await supabase.from("subscription_requests").delete().eq("id", requestId);
+      return fail("Could not submit your request right now. Please try again.");
+    }
+  }
+
   // Fire notifications (best-effort — never blocks the submit).
   await notifySubmitted(
     {
@@ -224,7 +271,7 @@ export async function submitRequest(
       reason,
       amount_estimate: amountEstimate,
       billing_cycle: billingCycle,
-      credentials,
+      has_credentials: hasCredentials,
       team_id: teamId,
     },
     autoApprove,
@@ -251,7 +298,7 @@ async function reviewRequest(
   const { data: existing, error: loadError } = await supabase
     .from("subscription_requests")
     .select(
-      "requester_name, requester_email, platform, product, reason, amount_estimate, billing_cycle, credentials, team_id",
+      "requester_name, requester_email, platform, product, reason, amount_estimate, billing_cycle, team_id, request_credentials(request_id)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -284,7 +331,14 @@ async function reviewRequest(
   }
 
   // For a rejection, surface the review note as the "reason" in the email.
-  const reviewed = existing as NotifiableRequest;
+  const { request_credentials: credRow, ...existingFields } =
+    existing as unknown as Omit<NotifiableRequest, "has_credentials"> & {
+      request_credentials: unknown;
+    };
+  const reviewed: NotifiableRequest = {
+    ...existingFields,
+    has_credentials: Array.isArray(credRow) ? credRow.length > 0 : credRow != null,
+  };
   await notifyReviewed(
     {
       ...reviewed,
@@ -326,7 +380,7 @@ export async function purchaseRequest(
   const { data: request, error: fetchError } = await supabase
     .from("subscription_requests")
     .select(
-      "id, status, platform, product, reason, amount_estimate, billing_cycle, credentials, requester_name, requester_email, reviewed_at, reviewed_by, team_id",
+      "id, status, platform, product, reason, amount_estimate, billing_cycle, requester_name, requester_email, reviewed_at, reviewed_by, team_id",
     )
     .eq("id", id)
     .maybeSingle();
@@ -441,7 +495,8 @@ export async function purchaseRequest(
 
   // Tell the requester + the approver their subscription is live (best-effort).
   const approverEmail = await profileEmail(request.reviewed_by);
-  await notifyPurchased(request as unknown as NotifiableRequest, {
+  // The purchased email doesn't mention credentials, so has_credentials is moot.
+  await notifyPurchased({ ...request, has_credentials: false } as NotifiableRequest, {
     amount: Math.round(amount * 100) / 100,
     currency,
     nextRenewalDate,

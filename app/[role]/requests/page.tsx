@@ -52,7 +52,11 @@ export default async function RequestsPage({
         title="Subscription requests"
         subtitle="Review incoming requests, approve or reject them, and hand approved ones to buyers."
       />
-      <RequestsPanel tab={tab} basePath={basePath} />
+      <RequestsPanel
+        tab={tab}
+        basePath={basePath}
+        canRevealCredentials={session.role === "admin"}
+      />
     </PageBody>
   );
 }

@@ -14,7 +14,11 @@ export async function getRequests(
 ): Promise<SubscriptionRequestRow[]> {
   const supabase = createServiceClient();
 
-  let query = supabase.from("subscription_requests").select("*");
+  // Embed only the credentials row's key — enough to flag has_credentials;
+  // the ciphertext is never selected here.
+  let query = supabase
+    .from("subscription_requests")
+    .select("*, request_credentials(request_id)");
   query = Array.isArray(status)
     ? query.in("status", status)
     : query.eq("status", status);
@@ -28,7 +32,19 @@ export async function getRequests(
   if (error) {
     throw new Error(`Failed to load requests: ${error.message}`);
   }
-  return (data ?? []) as SubscriptionRequestRow[];
+  type EmbeddedRow = Omit<SubscriptionRequestRow, "has_credentials"> & {
+    // A one-to-one embed comes back as an object (or null); handle an array
+    // defensively too.
+    request_credentials: { request_id: string } | { request_id: string }[] | null;
+  };
+  return ((data ?? []) as unknown as EmbeddedRow[]).map(
+    ({ request_credentials, ...row }) => ({
+      ...row,
+      has_credentials: Array.isArray(request_credentials)
+        ? request_credentials.length > 0
+        : request_credentials !== null,
+    }),
+  );
 }
 
 /** Per-status counts for the admin tab badges (request_counts RPC). Scoped to

@@ -1,9 +1,10 @@
 "use client";
 
 // m08-teams — "Add team lead" dialog. Creates a GoTrue account + profile via
-// addTeamLead. The password is temporary; the lead can change it after their
-// first sign-in. Astryx inputs are controlled, so values are mirrored into
-// hidden inputs for the FormData the action reads.
+// addTeamLead. No password: adding the email is the allow-list entry; the lead
+// signs in with Google and sets up an authenticator app.
+// Astryx inputs are controlled, so values are mirrored into hidden inputs for
+// the FormData the action reads.
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@astryxdesign/core/Button";
@@ -21,7 +22,6 @@ export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
   const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -36,7 +36,6 @@ export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
         setOpen(false);
         setFullName("");
         setEmail("");
-        setPassword("");
         router.refresh();
       } catch (e) {
         setError(
@@ -69,12 +68,11 @@ export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
         <form action={onSubmit}>
           <input type="hidden" name="full_name" value={fullName} />
           <input type="hidden" name="email" value={email} />
-          <input type="hidden" name="password" value={password} />
           <Layout
             header={
               <DialogHeader
                 title="Add team lead"
-                subtitle="Creates a login for a team lead. The password is temporary — they can change it after signing in."
+                subtitle="Creates a login for a team lead. They sign in with this Google account and set up an authenticator app."
                 onOpenChange={setOpen}
               />
             }
@@ -94,14 +92,7 @@ export function AddTeamLeadDialog({ teams }: { teams: TeamOption[] }) {
                     onChange={setEmail}
                     isRequired
                     placeholder="jane@company.com"
-                  />
-                  <TextInput
-                    label="Temporary password"
-                    type="password"
-                    value={password}
-                    onChange={setPassword}
-                    isRequired
-                    description="At least 8 characters."
+                    description="Their Google account email — the only address they can sign in with."
                   />
                   <VStack gap={1}>
                     <Text type="label" as="label">

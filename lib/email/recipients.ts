@@ -1,7 +1,6 @@
 // lib/email — recipient resolution shared by the request + cancellation notify
 // layers. Service client only (RLS is deny-all). Every helper degrades to []
 // / null on error so a notification never blocks the underlying action.
-import { adminEmails } from "@/lib/supabase/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /** Team-lead mailbox addresses for a team (empty when no team / none). */
@@ -26,7 +25,7 @@ export async function buyerEmails(): Promise<string[]> {
   return ((data ?? []) as { email: string }[]).map((r) => r.email);
 }
 
-/** Every admin's mailbox address (DB admins ∪ ADMIN_EMAILS bootstrap). */
+/** Every admin's mailbox address. */
 export async function allAdminEmails(): Promise<string[]> {
   const supabase = createServiceClient();
   const { data } = await supabase
@@ -34,7 +33,7 @@ export async function allAdminEmails(): Promise<string[]> {
     .select("email")
     .eq("role", "admin");
   const dbAdmins = ((data ?? []) as { email: string }[]).map((r) => r.email);
-  return Array.from(new Set([...adminEmails(), ...dbAdmins]));
+  return Array.from(new Set(dbAdmins));
 }
 
 /** A single profile's email by id, or null. */

@@ -7,6 +7,7 @@ import { Card } from "@astryxdesign/core/Card";
 import { Text } from "@astryxdesign/core/Text";
 import { VStack } from "@astryxdesign/core/VStack";
 import { HStack } from "@astryxdesign/core/HStack";
+import { StatusDot } from "@astryxdesign/core/StatusDot";
 import {
   Table,
   TableBody,
@@ -27,12 +28,16 @@ interface SubscriptionTableProps {
   newBasePath: string;
 }
 
-function StatusBadge({ status }: { status: SubscriptionOverviewRow["status"] }) {
+function StatusLabel({ status }: { status: SubscriptionOverviewRow["status"] }) {
+  const label = status === "active" ? "Active" : "Cancelled";
   return (
-    <Badge
-      variant={status === "active" ? "success" : "neutral"}
-      label={status}
-    />
+    <HStack gap={1.5} align="center">
+      <StatusDot
+        variant={status === "active" ? "success" : "neutral"}
+        label={label}
+      />
+      <Text size="sm">{label}</Text>
+    </HStack>
   );
 }
 
@@ -63,10 +68,18 @@ function CheckLine({
   }
 }
 
-function cardLabel(row: SubscriptionOverviewRow): string {
-  if (!row.card_id) return "—";
-  const name = row.card_nickname ?? row.card_name ?? "Card";
-  return row.card_last4 ? `${name} ••${row.card_last4}` : name;
+/** Card cell: the last 4 digits up front, the card's name beneath. */
+function CardCell({ row }: { row: SubscriptionOverviewRow }) {
+  if (!row.card_id) return <Text type="supporting">—</Text>;
+  const name = row.card_nickname ?? row.card_name;
+  return (
+    <VStack gap={0.5} align="start">
+      <Text size="sm" weight="medium" className="tabular-nums">
+        {row.card_last4 ? `•••• ${row.card_last4}` : "Card"}
+      </Text>
+      {name ? <Text size="xsm" type="supporting">{name}</Text> : null}
+    </VStack>
+  );
 }
 
 export async function SubscriptionTable({
@@ -91,10 +104,11 @@ export async function SubscriptionTable({
           <TableRow isHeaderRow>
             <TableHeaderCell>Platform</TableHeaderCell>
             <TableHeaderCell>Team</TableHeaderCell>
+            <TableHeaderCell>Card (last 4)</TableHeaderCell>
             <TableHeaderCell className="text-right">Amount</TableHeaderCell>
-            <TableHeaderCell>Next renewal</TableHeaderCell>
-            <TableHeaderCell>Card</TableHeaderCell>
             <TableHeaderCell>Status</TableHeaderCell>
+            <TableHeaderCell>Started</TableHeaderCell>
+            <TableHeaderCell>Next renewal</TableHeaderCell>
             {canManage ? (
               <TableHeaderCell className="text-right">Actions</TableHeaderCell>
             ) : null}
@@ -128,6 +142,10 @@ export async function SubscriptionTable({
                 )}
               </TableCell>
 
+              <TableCell className="whitespace-nowrap">
+                <CardCell row={row} />
+              </TableCell>
+
               <TableCell className="whitespace-nowrap text-right tabular-nums">
                 {Number(row.amount).toFixed(2)} {row.currency}
                 <span className="text-xs text-secondary">
@@ -136,19 +154,11 @@ export async function SubscriptionTable({
                 </span>
               </TableCell>
 
-              <TableCell className="whitespace-nowrap">
-                {row.next_renewal_date}
-              </TableCell>
-
-              <TableCell className="whitespace-nowrap">
-                {cardLabel(row)}
-              </TableCell>
-
               {/* Status + the latest renewal-check result stacked beneath it */}
               <TableCell>
                 <VStack gap={1} align="start">
                   <HStack gap={1} align="center" wrap="wrap">
-                    <StatusBadge status={row.status} />
+                    <StatusLabel status={row.status} />
                     {row.status === "active" && row.cancellation_pending ? (
                       <Badge variant="warning" label="cancellation pending" />
                     ) : null}
@@ -158,6 +168,14 @@ export async function SubscriptionTable({
                     failureReason={row.last_check_failure_reason}
                   />
                 </VStack>
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap">
+                {row.start_date}
+              </TableCell>
+
+              <TableCell className="whitespace-nowrap">
+                {row.next_renewal_date}
               </TableCell>
 
               {canManage ? (
