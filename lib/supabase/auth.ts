@@ -1,6 +1,7 @@
 // Cookie-based Supabase client for AUTH (login sessions). Uses the publishable
 // key — it can only authenticate users; data access stays on the service
 // client (lib/supabase/server.ts) behind deny-all RLS.
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -56,7 +57,7 @@ export function resolveRole(metaRole: unknown): UserRole | null {
 type AuthClient = Awaited<ReturnType<typeof createAuthClient>>;
 
 /** Evaluate the session policy (Google sign-in, 30-min hard limit, TOTP) for
- *  the client's current session. Call after getUser() has verified it. */
+ *  the client's current session. Call after getClaims() has verified it. */
 export async function gateFor(supabase: AuthClient): Promise<SessionGate> {
   const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (error || !data) return { kind: "invalid" };
@@ -76,41 +77,43 @@ export async function getPendingLogin(): Promise<
   | null
 > {
   const supabase = await createAuthClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return null;
-  if (!resolveRole(user.app_metadata?.role)) return null;
-  return { email: user.email, gate: await gateFor(supabase) };
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.email) return null;
+  if (!resolveRole(claims.app_metadata?.role)) return null;
+  return { email: claims.email, gate: await gateFor(supabase) };
 }
 
 /** The current session as a role-resolved user, or null if unauthenticated,
  *  not authorized (no role), or not fully signed in under the session policy
- *  (Google + authenticator code, within 30 minutes of signing in). */
-export async function getSessionUser(): Promise<SessionUser | null> {
+ *  (Google + authenticator code, within 30 minutes of signing in).
+ *
+ *  The JWT is verified locally (getClaims + the project's ES256 signing keys)
+ *  rather than with a round trip to the auth server, and the result is cached
+ *  per request so the layout, page and actions share one check. */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createAuthClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return null;
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims;
+  if (!claims?.sub || !claims.email) return null;
 
-  const role = resolveRole(user.app_metadata?.role);
+  const role = resolveRole(claims.app_metadata?.role);
   if (!role) return null;
 
   const gate = await gateFor(supabase);
   if (gate.kind !== "ok") return null;
 
-  const rawTeam = user.app_metadata?.team_id;
+  const rawTeam = claims.app_metadata?.team_id;
   const teamId = typeof rawTeam === "string" && rawTeam ? rawTeam : null;
 
   return {
-    id: user.id,
-    email: user.email,
+    id: claims.sub,
+    email: claims.email,
     role,
     teamId,
     expiresAt: gate.expiresAt,
   };
-}
+});
 
 /** The signed-in admin user, or null. (Back-compat helper for the layout.) */
 export async function getAdminUser(): Promise<SessionUser | null> {

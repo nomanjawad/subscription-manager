@@ -57,10 +57,11 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refresh the session and identify the user (never trust getSession here).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresh the session if needed and verify the JWT locally against the
+  // project's ES256 signing keys (no auth-server round trip per request; never
+  // trust getSession alone).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ?? null;
 
   // Resolve role from the JWT (app_metadata), set when an admin adds the
   // account. Mirrors lib/supabase/auth.ts:resolveRole — kept DB-free for the edge.
@@ -88,7 +89,7 @@ export async function proxy(request: NextRequest) {
   const needsMfa = gate?.kind === "mfa_verify" || gate?.kind === "mfa_enroll";
   const isDead = gate?.kind === "expired" || gate?.kind === "invalid";
 
-  // Any redirect must carry over cookies written during getUser() (refresh
+  // Any redirect must carry over cookies written during getClaims() (refresh
   // token rotation) — otherwise the browser keeps a stale token.
   function redirectTo(path: string): NextResponse {
     // `path` may carry its own query (e.g. "/login?reason=expired").
