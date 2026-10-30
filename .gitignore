@@ -36,7 +36,7 @@ CLAUDE.md
 
 # vercel
 .vercel
-
+.vscode
 # typescript
 *.tsbuildinfo
 next-env.d.ts
